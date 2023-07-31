@@ -1,0 +1,60 @@
+This is pBibTeX, Version 0.99d-j0.33 (utf8.euc) (TeX Live 2021)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+A level-1 auxiliary file: intro.aux
+A level-1 auxiliary file: 1.aux
+A level-1 auxiliary file: 2.aux
+A level-1 auxiliary file: 3.aux
+A level-1 auxiliary file: 4.aux
+A level-1 auxiliary file: 5.aux
+A level-1 auxiliary file: 6.aux
+A level-1 auxiliary file: reference.aux
+The style file: junsrt.bst
+A level-1 auxiliary file: syaji.aux
+Database file #1: reference.bib
+Warning--empty journal in Nielsen1989
+Warning--empty journal in Ruder2016
+Warning--empty journal in Finn2017
+You've used 28 entries,
+            2270 wiz_defined-function locations,
+            750 strings with 8852 characters,
+and the built_in function-call counts, 9177 in all, are:
+= -- 744
+> -- 232
+< -- 36
++ -- 96
+- -- 68
+* -- 446
+:= -- 1114
+add.period$ -- 84
+call.type$ -- 28
+change.case$ -- 27
+chr.to.int$ -- 0
+cite$ -- 31
+duplicate$ -- 597
+empty$ -- 864
+format.name$ -- 136
+if$ -- 2305
+int.to.chr$ -- 0
+int.to.str$ -- 28
+missing$ -- 29
+newline$ -- 143
+num.names$ -- 28
+pop$ -- 146
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 523
+stack$ -- 0
+substring$ -- 530
+swap$ -- 207
+text.length$ -- 36
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 3
+while$ -- 66
+width$ -- 30
+write$ -- 301
+is.kanji.str$ -- 298
+(There were 3 warnings)

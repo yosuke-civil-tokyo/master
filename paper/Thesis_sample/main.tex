@@ -1,0 +1,96 @@
+\documentclass[a4paper,11pt,oneside,uplatex]{jsbook}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage[dvipdfmx]{color}
+\usepackage{lscape}
+\usepackage{subfigure}
+\usepackage{verbatim}
+\usepackage{wrapfig}
+\usepackage{ascmac}
+\usepackage{makeidx}
+\usepackage{slant}
+\usepackage{booktabs}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{mathtools}
+\usepackage{physics}
+\usepackage{caption}
+
+%\usepackage[dvipdfm, pdfstartview=FitH, bookmarksnumbered = true, linkbordercolor={1 1 1}, citebordercolor={1 1 1}]{hyperref}
+%\AtBeginDvi{\special{pdf:tounicode EUC-UCS2}}
+
+\newcommand{\ci}[1]{{\tiny \cite{#1}}}
+
+\newcommand{\fig}[7]{
+\begin{figure}#1
+\begin{center}
+\includegraphics[width=#2cm,bb=0 0 #3 #4]{./picture/#5.eps}
+\end{center}
+\caption{#6}
+\label{#7}
+\end{figure}
+}
+
+\newcommand{\ctext}[1]{\raise0.2ex\hbox{\textcircled{\scriptsize{#1}}}}
+
+\newcommand{\tab}[8]{
+\begin{table}#1
+\caption{#2}
+\label{#3}
+#6
+\begin{center}
+	\begin{tabular}{#4} \toprule
+    #5\\ \bottomrule
+	\end{tabular}
+	\begin{flushright}
+	#8
+	\end{flushright}
+\end{center}
+#7
+\end{table}
+}
+%
+\makeindex
+%
+\setlength{\textwidth}{\fullwidth}
+\setlength{\textheight}{40\baselineskip}
+\addtolength{\textheight}{\topskip}
+\setlength{\voffset}{-0.55in}
+%\setlength{\oddsidemargin}{2zw}%左余白
+%\setlength{\marginparsep}{0mm}%注釈の幅
+%\setlength{\evensidemargin}{2zw8月分
+%%
+\title{2021年度卒業論文\\$\,$\\{\huge 時間変化する行動パラメータの\\リアルタイム推定手法} \\ {\Large Real-time Estimation Method\\ for Time-varying Behavioral Parameters} \\$\,$\\$\,$\\$\,$\\$\,$\\$\,$\\$\,$\\$\,$\\}
+\author{03-200040\\ 望月~陽介\\Yosuke Mochizuki}
+\date{東京大学工学系研究科\\社会基盤学専攻\\主査:~浦田~淳司~講師\\2022年2月}
+\begin{document}
+\maketitle
+%
+\frontmatter
+\include{intro}
+\setcounter{tocdepth}{2}
+\tableofcontents
+\listoffigures
+\listoftables
+%
+\mainmatter
+\include{1}
+\include{2}
+\include{3}
+\include{4}
+\include{5}
+\include{6}
+
+%
+%\appendix
+%\include{app}
+%
+\backmatter
+\include{reference}
+\include{syaji}
+%
+\newpage
+\printindex
+%
+\end{document}

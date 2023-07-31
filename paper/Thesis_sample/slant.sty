@@ -1,0 +1,31 @@
+\newbox\tmp@X
+\def\slantbox#1#2{{%
+        % 箱#2の大きさと位置は変えずに、箱の中身だけ#1ほど傾ける
+        % #1には角度を度単位で指定するかあるいは「sl」「it」と書く
+        % 「sl」と書くとarctan(1/6)だけ傾く(ほぼ\itの傾き)
+        % 「it」と書くとarctan(1/4)だけ傾く(ほぼ\slの傾き)
+        % 箱の大きさは変わらないので、傾いた分中身が箱の前後にはみ出す
+        % graphicsパッケージ要  #1に角度を指定する場合はeclarith.styも要
+        \setbox\tmp@X\hbox{#2}\edef\tmptok@a{#1}%
+        \def\tmptok@b{sl}\ifx\tmptok@a\tmptok@b% θ=atan(1/6)=9.46232°
+                \def\@RotDeg{49.7312}\def\sec@Theta{1.01379}%
+                \def\csDif@hTheta{.914112}\def\csSum@hTheta{1.07907}%
+        \else \def\tmptok@b{it}\ifx\tmptok@a\tmptok@b% θ=atan(1/4)=14.0362°
+                \def\@RotDeg{52.0181}\def\sec@Theta{1.03078}%
+                \def\csDif@hTheta{.870324}\def\csSum@hTheta{1.11469}%
+        \else
+                \Mul{#1}{.5}\@hTheta \Add{45}\@hTheta\@RotDeg
+                \DegRad\@hTheta\@hTheta
+                \Cos\@hTheta\c@hTheta \Sin\@hTheta\s@hTheta
+                \Add\c@hTheta\s@hTheta\csSum@hTheta
+                \Sub\c@hTheta\s@hTheta\csDif@hTheta
+                \Mul\csSum@hTheta\csDif@hTheta\sec@Theta
+                \Div{1}\sec@Theta\sec@Theta
+        \fi\fi
+        \mbox{\rotatebox{-\@RotDeg}{\scalebox{\csDif@hTheta}[\csSum@hTheta]{%
+                \rotatebox{45}{\scalebox{1}[\sec@Theta]{%
+                        \smash{\makebox[0pt][l]{\usebox{\tmp@X}}}%
+                }}%
+        }}\phantom{\usebox{\tmp@X}}}%
+}}
+\def\slbox{\slantbox{sl}}\def\itbox{\slantbox{it}}
