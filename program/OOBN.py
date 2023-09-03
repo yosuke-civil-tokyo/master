@@ -19,6 +19,7 @@ class ObjectNode:
     def structure_optimization(self):
         current_ordering = list(self.variables.keys())
         random.shuffle(current_ordering)
+        print(current_ordering)
         
         best_score = float('-inf')
         
@@ -34,7 +35,7 @@ class ObjectNode:
                     if variable.parents:
                         variable.estimate_cpt()
                 
-                score = self.BIC()
+                score = self.BIC_all()
                 
                 if score > best_score:
                     best_score = score
@@ -46,7 +47,7 @@ class ObjectNode:
             if not improved:
                 break
 
-    def BIC(self):
+    def BIC_all(self):
         score = 0
         N = len(next(iter(self.variables.values())).data)
         
@@ -54,6 +55,15 @@ class ObjectNode:
             k = len(variable.cpt)
             log_likelihood = self.calculate_log_likelihood(variable)
             score += log_likelihood - (k / 2) * math.log(N)
+        
+        return score
+    
+    def BIC_sep(self, variable):
+        N = len(variable.data)
+        
+        k = len(variable.cpt)
+        log_likelihood = self.calculate_log_likelihood(variable)
+        score = log_likelihood - (k / 2) * math.log(N)
         
         return score
 
@@ -81,14 +91,16 @@ class ObjectNode:
             candidate_parents = [self.variables[var] for var in subset]
             variable.set_parents(candidate_parents)
             variable.estimate_cpt()
+            print(variable.cpt)
             
-            score = self.BIC()
+            score = self.BIC_sep(variable)
             
             if score > best_score:
                 best_score = score
                 best_parents = candidate_parents
         
         variable.set_parents(best_parents)
+        variable.estimate_cpt()
 
 
 if __name__=="__main__":
@@ -115,6 +127,8 @@ if __name__=="__main__":
     engine.add_variable(B)
     engine.add_variable(C)
     engine.add_variable(D)
+
+    print("Estimation starts")
 
     engine.structure_optimization()
 
