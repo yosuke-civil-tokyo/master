@@ -19,33 +19,42 @@ class ObjectNode:
     def structure_optimization(self):
         current_ordering = list(self.variables.keys())
         random.shuffle(current_ordering)
-        print(current_ordering)
-        
+
         best_score = float('-inf')
-        
+
         while True:
-            improved = False
-            
+            max_improvement = float('-inf')
+            best_swap_index = None
+
             for i in range(len(current_ordering) - 1):
+                # Temporarily swap and update structure
                 current_ordering[i], current_ordering[i + 1] = current_ordering[i + 1], current_ordering[i]
                 self.update_structure(current_ordering)
-                
+
+                # Estimate CPT and calculate BIC score
                 for var_name in current_ordering:
                     variable = self.variables[var_name]
                     if variable.parents:
                         variable.estimate_cpt()
-                
+
                 score = self.BIC_all()
-                
-                if score > best_score:
-                    best_score = score
-                    improved = True
-                    break
-                
+
+                # Calculate improvement
+                improvement = score - best_score
+
+                if improvement > max_improvement:
+                    max_improvement = improvement
+                    best_swap_index = i
+
+                # Undo the swap
                 current_ordering[i], current_ordering[i + 1] = current_ordering[i + 1], current_ordering[i]
-            
-            if not improved:
-                break
+
+            # If we found a swap that improves the score, perform the swap
+            if best_swap_index is not None:
+                current_ordering[best_swap_index], current_ordering[best_swap_index + 1] = current_ordering[best_swap_index + 1], current_ordering[best_swap_index]
+                best_score += max_improvement
+            else:
+                break  # No improving swap was found
 
     def BIC_all(self):
         score = 0
@@ -101,6 +110,8 @@ class ObjectNode:
         
         variable.set_parents(best_parents)
         variable.estimate_cpt()
+
+    
 
 
 if __name__=="__main__":
