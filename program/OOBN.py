@@ -1,63 +1,124 @@
-# main script for Object Oriented Bayesian Network
-
+import math
+from itertools import chain, combinations
 import numpy as np
-import pandas as pd
+import random
 
-# class for object
-class Object:
-    def __init__(self, name, data):
+from BN import Variable
+
+
+# ObjectNode class definition
+class ObjectNode:
+    def __init__(self, name):
         self.name = name
-        self.data = data
-        self.variables = data.columns.values
-        self.input_var = []
-        self.output_var = []
-        self.child_object = []
-        self.parent_object = []
-
-    # set input variables
-    def set_input(self, input_var):
-        self.input_var.append(input_var)
-
-    # set output variables
-    def set_output(self, output_var):
-        self.output_var.append(output_var)
-
-    # set children objects
-    def set_child(self, child_object):
-        self.child_object.append(child_object)
-        child_object.parent_object.append(self)
-
-    # set parent objects
-    def set_parent(self, parent_object):
-        self.parent_object.append(parent_object)
-        parent_object.child_object.append(self)
-
-    # set a function to compute output_var from input_var
-    def set_function(self, function):
-        self.function = function
-
-    # calculate output_var from input_var
-    def forward(self):
-        return self.function(self.input_var)
+        self.variables = {}
     
+    def add_variable(self, variable):
+        self.variables[variable.name] = variable
+        variable.object_node = self
+
+    def structure_optimization(self):
+        current_ordering = list(self.variables.keys())
+        random.shuffle(current_ordering)
+        
+        best_score = float('-inf')
+        
+        while True:
+            improved = False
+            
+            for i in range(len(current_ordering) - 1):
+                current_ordering[i], current_ordering[i + 1] = current_ordering[i + 1], current_ordering[i]
+                self.update_structure(current_ordering)
+                
+                for var_name in current_ordering:
+                    variable = self.variables[var_name]
+                    if variable.parents:
+                        variable.estimate_cpt()
+                
+                score = self.BIC()
+                
+                if score > best_score:
+                    best_score = score
+                    improved = True
+                    break
+                
+                current_ordering[i], current_ordering[i + 1] = current_ordering[i + 1], current_ordering[i]
+            
+            if not improved:
+                break
+
+    def BIC(self):
+        score = 0
+        N = len(next(iter(self.variables.values())).data)
+        
+        for variable in self.variables.values():
+            k = len(variable.cpt)
+            log_likelihood = self.calculate_log_likelihood(variable)
+            score += log_likelihood - (k / 2) * math.log(N)
+        
+        return score
+
+    def calculate_log_likelihood(self, variable):
+        log_likelihood = 0
+        for i, val in enumerate(variable.data):
+            parent_states = np.array([parent.data[i] for parent in variable.parents])
+            prob = variable.probability(parent_states)[val]
+            log_likelihood += math.log(prob)
+        
+        return log_likelihood
+
+    def update_structure(self, ordering):
+        for var_name in ordering:
+            variable = self.variables[var_name]
+            self.find_optimal_parents(variable, ordering)
+
+    def find_optimal_parents(self, variable, ordering):
+        best_parents = []
+        best_score = float('-inf')
+        
+        preceding_vars = ordering[:ordering.index(variable.name)]
+        
+        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(len(preceding_vars) + 1)):
+            candidate_parents = [self.variables[var] for var in subset]
+            variable.set_parents(candidate_parents)
+            variable.estimate_cpt()
+            
+            score = self.BIC()
+            
+            if score > best_score:
+                best_score = score
+                best_parents = candidate_parents
+        
+        variable.set_parents(best_parents)
 
 
+if __name__=="__main__":
+    # Test code
+    np.random.seed(0)
+    data_A = np.random.choice([0, 1], size=100)
+    data_B = np.random.choice([0, 1], size=100)
+    data_C = np.random.choice([0, 1], size=100)
+    data_D = np.random.choice([0, 1], size=100)
 
-# Example usage
-# function to create random output regardless of input
-def random_function(input_var):
-    return np.random.normal()
+    A = Variable("A", 2)
+    B = Variable("B", 2)
+    C = Variable("C", 2)
+    D = Variable("D", 2)
 
-# let's test it
-obj1 = Object('Object1', ['A', 'B', 'C'])
-obj1.set_input(['A', 'B'])
-obj1.set_output(['C'])
-obj1.set_function(random_function)
+    A.set_data(data_A)
+    B.set_data(data_B)
+    C.set_data(data_C)
+    D.set_data(data_D)
 
-obj2 = Object('Object2', ['X', 'Y'])
-obj2.set_input(['X'])
-obj2.set_output(['Y'])
-obj2.set_function(random_function)
+    engine = ObjectNode("Engine")
 
-obj1.set_child(obj2)
+    engine.add_variable(A)
+    engine.add_variable(B)
+    engine.add_variable(C)
+    engine.add_variable(D)
 
+    engine.structure_optimization()
+
+    # Display the optimized structure
+    for var_name, variable in engine.variables.items():
+        parent_names = [parent.name for parent in variable.parents]
+        print(f"Variable {var_name} has parents {parent_names}")
