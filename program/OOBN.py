@@ -111,6 +111,19 @@ class ObjectNode:
         variable.set_parents(best_parents)
         variable.estimate_cpt()
 
+    # setting data to each variable
+    def set_data_from_dataloader(self, dataloader):
+        data, variable_names = dataloader.get_data()
+        
+        for name, values in data.items():
+            if name in self.variables:
+                self.variables[name].set_data(values, name)
+            else:
+                print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
+                new_var = Variable(name, states=max(values) + 1)
+                new_var.set_data(values, name)
+                self.add_variable(new_var)
+
     
 
 

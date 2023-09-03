@@ -14,8 +14,10 @@ class Variable:
     def set_cpt(self, cpt_array):
         self.cpt = np.array(cpt_array)
 
-    def set_data(self, data_array):
+    def set_data(self, data_array, name=None):
         self.data = np.array(data_array)
+        if name:
+            self.name = name
 
     def probability(self, parent_states):
         # Create an index tuple to access the correct slice in the CPT NumPy array
