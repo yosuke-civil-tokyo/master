@@ -8,9 +8,9 @@ from BN import Variable
 
 # ObjectNode class definition
 class ObjectNode:
-    def __init__(self, name):
+    def __init__(self, name, variables):
         self.name = name
-        self.variables = {}
+        self.variables = variables
     
     def add_variable(self, variable):
         self.variables[variable.name] = variable
@@ -111,18 +111,16 @@ class ObjectNode:
         variable.set_parents(best_parents)
         variable.estimate_cpt()
 
-    # setting data to each variable
-    def set_data_from_dataloader(self, dataloader):
-        data, variable_names = dataloader.get_data()
+    # Setting data to each variable
+    def set_data_from_dataloader(self, dataloader, column_list):
+        variables = dataloader.get_data(column_list)
         
-        for name, values in data.items():
+        for name, variable in variables.items():
             if name in self.variables:
-                self.variables[name].set_data(values, name)
+                self.variables[name].set_data(variable.data, name)
             else:
-                print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
-                new_var = Variable(name, states=max(values) + 1)
-                new_var.set_data(values, name)
-                self.add_variable(new_var)
+                # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
+                self.add_variable(variable)
 
     
 
