@@ -9,8 +9,8 @@ from BN import Variable
 
 
 # ObjectNode class definition
-class ObjectNode:
-    def __init__(self, name, variables):
+class ObjectNode(Variable):
+    def __init__(self, name, variables={}):
         self.name = name
         self.variables = variables
     
@@ -18,9 +18,19 @@ class ObjectNode:
         self.variables[variable.name] = variable
         variable.object_node = self
 
-    def structure_optimization(self):
+    def structure_optimization(self, fixed_positions=None):
+        # check if any variable has to be fixed
+        if fixed_positions is None:
+            fixed_positions = {}
+    
         current_ordering = list(self.variables.keys())
         random.shuffle(current_ordering)
+
+        # Apply fixed positions if provided
+        for var, pos in fixed_positions.items():
+            current_ordering.remove(var)
+            current_ordering.insert(pos, var)
+        print(current_ordering)
 
         best_score = float('-inf')
 
@@ -29,6 +39,10 @@ class ObjectNode:
             best_swap_index = None
 
             for i in range(len(current_ordering) - 1):
+
+                # Skip over fixed positions
+                if current_ordering[i] in fixed_positions.keys() or current_ordering[i+1] in fixed_positions.keys():
+                    continue
                 # Temporarily swap and update structure
                 current_ordering[i], current_ordering[i + 1] = current_ordering[i + 1], current_ordering[i]
                 self.update_structure(current_ordering)
@@ -166,7 +180,8 @@ if __name__=="__main__":
 
     print("Estimation starts")
 
-    engine.structure_optimization()
+    fixed_positions = {'D': 0, 'C': 3}
+    engine.structure_optimization(fixed_positions=fixed_positions)
 
     # Display the optimized structure
     for var_name, variable in engine.variables.items():
