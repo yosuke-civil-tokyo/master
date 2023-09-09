@@ -2,6 +2,8 @@ import math
 from itertools import chain, combinations
 import numpy as np
 import random
+import networkx as nx
+import matplotlib.pyplot as plt
 
 from BN import Variable
 
@@ -100,7 +102,6 @@ class ObjectNode:
             candidate_parents = [self.variables[var] for var in subset]
             variable.set_parents(candidate_parents)
             variable.estimate_cpt()
-            print(variable.cpt)
             
             score = self.BIC_sep(variable)
             
@@ -122,6 +123,19 @@ class ObjectNode:
                 # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
                 self.add_variable(variable)
 
+    # Display the optimized structure
+    def visualize_structure(self):
+        G = nx.DiGraph()
+        
+        for var_name, variable in self.variables.items():
+            G.add_node(var_name)
+            for parent in variable.parents:
+                G.add_edge(parent.name, var_name)
+        
+        pos = nx.spring_layout(G)  # positions for all nodes
+        nx.draw(G, pos, with_labels=True, node_color="lightblue", font_size=16, node_size=700, font_color="black", font_weight="bold", arrowsize=20)
+        plt.title("Bayesian Network Structure")
+        plt.show()
     
 
 

@@ -136,11 +136,9 @@ def make_walk_car(use_col=["自動車運転免許保有の状況", "WalkTime", "
     # set the table as dl.pt_data, with reset index
     dl.pt_data = table.reset_index(drop=True)
 
-    # let's make a ObjectNode
-    object_node = ObjectNode("TestNode", {})
-    object_node.set_data_from_dataloader(dl, use_col)
-    object_node.structure_optimization()
+    return dl
+
 
 # Test code (you can replace 'pt_data.csv' with your actual PT data CSV file)
 if __name__ == '__main__':
-    make_walk_car()
+    dl = make_walk_car()
