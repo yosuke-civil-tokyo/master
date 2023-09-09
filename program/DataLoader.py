@@ -70,30 +70,32 @@ class DataLoader:
         new_los_data[['発ゾーン', '着ゾーン']] = new_los_data[['発ゾーン', '着ゾーン']].astype(int)
         
         # Merge the new LOS data with PT data
-        merged_data = pd.merge(pt_data, new_los_data, how='inner',
+        merged_data = pd.merge(pt_data, new_los_data, how='left',
                                 left_on=['出発地：ゾーンコード', '到着地：ゾーンコード'],
                                 right_on=['発ゾーン', '着ゾーン'])
-        print(new_los_data)
-        print(pt_data)
-        print(merged_data)
         
         # Add the new column to existing LOS data if exists
         for key, value in column_names.items():
             if self.los_data is None:
                 self.los_data = merged_data[['発ゾーン', '着ゾーン']+[key]].rename(columns={key: value})
             else:
-                self.los_data = pd.merge(self.los_data, merged_data[key], how='inner', on=['発ゾーン', '着ゾーン']).rename(columns={key: value})
+                # concatenate the new column to existing LOS data
+                self.los_data = pd.concat([self.los_data, merged_data[[key]].rename(columns={key: value})], axis=1)
 
     def load_zone_data(self, zone_csv_file_path):
         # Read Zone data from CSV
         self.zone_data = pd.read_csv(zone_csv_file_path)
+
+    # extract columns, and remove rows with NaN
+    def extract_data(self, df, column_list):
+        return df[column_list].dropna()
         
     def to_variable(self, column_list):
         variables = {}
         for column_name in column_list:
             if column_name in self.pt_data.columns:
                 data_array = self.pt_data[column_name].to_numpy()
-                variable = Variable(column_name, states=np.max(data_array) + 1)
+                variable = Variable(column_name, states=int(np.max(data_array) + 1))
                 variable.set_data(data_array)
                 variables[column_name] = variable
             else:
@@ -102,15 +104,43 @@ class DataLoader:
 
     def get_data(self, column_list):
         return self.to_variable(column_list)
+    
+    # make a table combining pt_data and los_data with specified columns
+    def make_los_table(self, column_list):
+        # concatenate pt_data and los_data
+        table = pd.concat([self.pt_data, self.los_data], axis=1)
+        # extract specified columns
+        table = table[column_list]
+        return table
+    
+    # discretize columns
+    def discretize_dataframe(self, df, col_dict):
+        for col_name, bin_size in col_dict.items():
+            df[col_name] = pd.qcut(df[col_name].rank(method='first'), bin_size, labels=False)
+        return df
+    
+
+# let's make simple los data for each trip
+def make_walk_car(use_col=["自動車運転免許保有の状況", "WalkTime", "CarTime", "トリップ番号", "代表交通手段：分類０"]):
+    dl = DataLoader()
+    dl.load_pt_data('data/activityData/MS2611_utf8.csv')
+    dl.load_los_data('data/losData/05_代表徒歩_現況.csv', {'徒歩所要時間（分）': 'WalkTime'})
+    dl.load_los_data('data/losData/03_代表自動車_現況_utf8.csv', {'時間（分）': 'CarTime'})
+
+    table = dl.make_los_table(use_col)
+    table = table[(table["代表交通手段：分類０"] == 1)|(table["代表交通手段：分類０"] == 10)]
+
+    table = dl.extract_data(table, use_col)
+    table = dl.discretize_dataframe(table, {"自動車運転免許保有の状況": 3, "WalkTime": 5, "CarTime": 5, "トリップ番号": 3, "代表交通手段：分類０": 2})
+
+    # set the table as dl.pt_data, with reset index
+    dl.pt_data = table.reset_index(drop=True)
+
+    # let's make a ObjectNode
+    object_node = ObjectNode("TestNode", {})
+    object_node.set_data_from_dataloader(dl, use_col)
+    object_node.structure_optimization()
 
 # Test code (you can replace 'pt_data.csv' with your actual PT data CSV file)
 if __name__ == '__main__':
-    dl = DataLoader()
-    dl.load_pt_data('data/activityData/MS2611_utf8.csv')
-    # dl.load_los_data('los_data.csv')
-    # dl.load_zone_data('zone_data.csv')
-    object_node = ObjectNode("TestNode", {})
-    dl.load_los_data('data/losData/05_代表徒歩_現況.csv', {'徒歩所要時間（分）': 'WalkTime'})
-    print(dl.los_data)
-    dl.load_los_data('data/losData/02_代表バス_現況_utf8.csv', {'ゾーン間所要時間（分）': 'BusTime'})
-    print(dl.los_data)  # This should print a dictionary of updated Variable objects for the specified columns
+    make_walk_car()
