@@ -5,8 +5,8 @@ class Variable:
         self.name = name
         self.states = states  # The number of possible states this variable can take
         self.parents = []  # List to store parent variables
+        self.data = None  # Field to store data as a NumPy array
         self.cpt = None  # Conditional Probability Table as a NumPy array
-        self.data = None  # Field to store observed data
         self.object_node = None  # Field to store an ObjectNode, if this variable belongs to on
 
     def set_parents(self, parents):
@@ -16,9 +16,13 @@ class Variable:
         self.cpt = np.array(cpt_array)
 
     def set_data(self, data_array, name=None):
-        self.data = np.array(data_array)
+        self.input_data = np.array(data_array)
+        self.output_data = np.array(data_array)
         if name:
             self.name = name
+
+    def get_data(self, input_or_output='input'):
+        return self.data
 
     def probability(self, parent_states):
         # Create an index tuple to access the correct slice in the CPT NumPy array
@@ -27,7 +31,7 @@ class Variable:
         return self.cpt[index]
     
     def estimate_cpt(self):
-        if self.data is None:
+        if self.get_data('input') is None:
             raise ValueError("Data not set for this variable.")
         
         num_states = [parent.states for parent in self.parents] + [self.states]
@@ -36,10 +40,10 @@ class Variable:
         self.cpt = np.zeros(num_states)
         
         # Compute the dimensions of the parent data
-        parent_dims = [parent.data for parent in self.parents]
+        parent_dims = [parent.get_data('output') for parent in self.parents]
         
         # Calculate joint counts
-        for i, val in enumerate(self.data):
+        for i, val in enumerate(self.get_data('input')):
             index = tuple(parent[i] for parent in parent_dims) + (val,)
             self.cpt[index] += 1
         

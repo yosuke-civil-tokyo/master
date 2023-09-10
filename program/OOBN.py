@@ -14,6 +14,25 @@ class ObjectNode(Variable):
         super().__init__(name, states=None) 
         self.name = name
         self.variables = variables
+        self.input_data = self.get_data()
+        self.output_data = self.get_data()
+
+    def set_data(self, data_array, name=None, data_type='input'):
+        if data_type == 'input':
+            self.input_data = np.array(data_array)
+        elif data_type == 'output':
+            self.output_data = np.array(data_array)
+        if name:
+            self.name = name
+
+    def get_data(self, data_type='input'):
+        if data_type == 'input':
+            return self.input_data
+        elif data_type == 'output':
+            return self.output_data
+        else:
+            raise ValueError("Invalid data_type. Choose 'input' or 'output'.")
+
     
     def add_variable(self, variable):
         self.variables[variable.name] = variable
@@ -75,7 +94,7 @@ class ObjectNode(Variable):
 
     def BIC_all(self):
         score = 0
-        N = len(next(iter(self.variables.values())).data)
+        N = len(next(iter(self.variables.values())).get_data('input'))
         
         for variable in self.variables.values():
             k = variable.cpt.size
@@ -85,7 +104,7 @@ class ObjectNode(Variable):
         return score
     
     def BIC_sep(self, variable):
-        N = len(variable.data)
+        N = len(variable.get_data('input'))
         
         k = variable.cpt.size
         log_likelihood = self.calculate_log_likelihood(variable)
@@ -95,8 +114,8 @@ class ObjectNode(Variable):
 
     def calculate_log_likelihood(self, variable):
         log_likelihood = 0
-        for i, val in enumerate(variable.data):
-            parent_states = np.array([parent.data[i] for parent in variable.parents])
+        for i, val in enumerate(variable.get_data('input')):
+            parent_states = np.array([parent.get_data('output')[i] for parent in variable.parents])
             prob = variable.probability(parent_states)[val]
             log_likelihood += math.log(prob)
         
@@ -133,7 +152,7 @@ class ObjectNode(Variable):
         
         for name, variable in variables.items():
             if name in self.variables:
-                self.variables[name].set_data(variable.data, name)
+                self.variables[name].set_data(variable.get_data('input'), name)
             else:
                 # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
                 self.add_variable(variable)
