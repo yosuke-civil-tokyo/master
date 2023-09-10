@@ -11,6 +11,7 @@ from BN import Variable
 # ObjectNode class definition
 class ObjectNode(Variable):
     def __init__(self, name, variables={}):
+        super().__init__(name, states=None) 
         self.name = name
         self.variables = variables
     

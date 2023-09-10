@@ -7,6 +7,7 @@ class Variable:
         self.parents = []  # List to store parent variables
         self.cpt = None  # Conditional Probability Table as a NumPy array
         self.data = None  # Field to store observed data
+        self.object_node = None  # Field to store an ObjectNode, if this variable belongs to on
 
     def set_parents(self, parents):
         self.parents = parents
