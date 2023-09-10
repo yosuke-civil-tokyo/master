@@ -14,16 +14,18 @@ class ObjectNode(Variable):
         super().__init__(name, states=None) 
         self.name = name
         self.variables = variables
-        self.input_data = self.get_data()
-        self.output_data = self.get_data()
+        self.input_data = self.data
+        self.output_data = self.data
+        self.input_states = self.states
+        self.output_states = self.states
 
-    def set_data(self, data_array, name=None, data_type='input'):
+    def set_data(self, data_array, data_type='input'):
         if data_type == 'input':
             self.input_data = np.array(data_array)
+            self.input_states=int(np.max(data_array) + 1)
         elif data_type == 'output':
             self.output_data = np.array(data_array)
-        if name:
-            self.name = name
+            self.output_states=int(np.max(data_array) + 1)
 
     def get_data(self, data_type='input'):
         if data_type == 'input':
@@ -33,6 +35,13 @@ class ObjectNode(Variable):
         else:
             raise ValueError("Invalid data_type. Choose 'input' or 'output'.")
 
+    def get_states(self, data_type='input'):
+        if data_type == 'input':
+            return self.input_states
+        elif data_type == 'output':
+            return self.output_states
+        else:
+            raise ValueError("Invalid data_type. Choose 'input' or 'output'.")
     
     def add_variable(self, variable):
         self.variables[variable.name] = variable

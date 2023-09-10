@@ -122,24 +122,32 @@ class DataLoader:
 
 # let's make simple los data for each trip
 def make_walk_car(
-        use_col=["自動車運転免許保有の状況", "WalkTime", "CarTime", "トリップ番号", "代表交通手段：分類０"], 
-        change_name={"自動車運転免許保有の状況": "License", "WalkTime": "WalkTime", "CarTime": "CarTime", "トリップ番号": "TripNumber", "代表交通手段：分類０": "Mode"}):
+        use_col={"自動車運転免許保有の状況": 3, "WalkTime": 3, "CarTime": 3, "トリップ番号": 3, "代表交通手段：分類０": 2}, 
+        change_name={"自動車運転免許保有の状況": "License", "WalkTime": "WalkTime", "CarTime": "CarTime", "トリップ番号": "TripNumber", "代表交通手段：分類０": "Mode"},
+        return_table=False):
     dl = DataLoader()
     dl.load_pt_data('data/activityData/MS2611_utf8.csv')
     dl.load_los_data('data/losData/05_代表徒歩_現況.csv', {'徒歩所要時間（分）': 'WalkTime'})
     dl.load_los_data('data/losData/03_代表自動車_現況_utf8.csv', {'時間（分）': 'CarTime'})
 
-    table = dl.make_los_table(use_col)
+    table = dl.make_los_table(use_col.keys())
     table = table[(table["代表交通手段：分類０"] == 1)|(table["代表交通手段：分類０"] == 10)]
 
-    table = dl.extract_data(table, use_col)
-    table = dl.discretize_dataframe(table, {"自動車運転免許保有の状況": 3, "WalkTime": 3, "CarTime": 3, "トリップ番号": 3, "代表交通手段：分類０": 2})
+    table = dl.extract_data(table, use_col.keys())
+    table = dl.discretize_dataframe(table, use_col)
     table = table.rename(columns=change_name)
 
     # set the table as dl.pt_data, with reset index
     dl.pt_data = table.reset_index(drop=True)
 
+    if return_table:
+        return table
+
     return dl
+
+# let's make pt_data only table
+def make_trip(use_col={"移動の目的":3, "目的種類：分類１":3, "年齢":3, "同行人数：人数":3}):
+    return None
 
 
 # Test code (you can replace 'pt_data.csv' with your actual PT data CSV file)

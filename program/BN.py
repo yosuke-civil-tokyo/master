@@ -16,13 +16,15 @@ class Variable:
         self.cpt = np.array(cpt_array)
 
     def set_data(self, data_array, name=None):
-        self.input_data = np.array(data_array)
-        self.output_data = np.array(data_array)
+        self.data = np.array(data_array)
         if name:
             self.name = name
 
     def get_data(self, input_or_output='input'):
         return self.data
+    
+    def get_states(self, input_or_output='input'):
+        return self.states
 
     def probability(self, parent_states):
         # Create an index tuple to access the correct slice in the CPT NumPy array
@@ -34,7 +36,7 @@ class Variable:
         if self.get_data('input') is None:
             raise ValueError("Data not set for this variable.")
         
-        num_states = [parent.states for parent in self.parents] + [self.states]
+        num_states = [parent.get_states('output') for parent in self.parents] + [self.get_states('input')]
         
         # Initialize CPT with zeros
         self.cpt = np.zeros(num_states)
