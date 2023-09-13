@@ -3,9 +3,9 @@ from BN import Variable
 from DataLoader import DataLoader, make_walk_car
 
 def main():
-    use_col={"自動車運転免許保有の状況": 3, "WalkTime": 3, "CarTime": 3, "トリップ番号": 3, "代表交通手段：分類０": 2,
+    use_col={"自動車運転免許保有の状況": 3, "WalkTime": 3, "CarTime": 3, "トリップ数": 3, "代表交通手段：分類０": 2,
              "移動の目的":3, "目的種類：分類１":3, "年齢":3, "同行人数：人数":3}
-    change_name= {"自動車運転免許保有の状況": "License", "トリップ番号": "TripNumber", "代表交通手段：分類０": "Mode",
+    change_name= {"自動車運転免許保有の状況": "License", "トリップ数": "TripNumber", "代表交通手段：分類０": "Mode",
                   "移動の目的": "Purpose", "目的種類：分類１": "PurposeType", "年齢": "Age", "同行人数：人数": "Companion"}
     new_use_col = [change_name.get(item, item) for item in use_col.keys()]
 
