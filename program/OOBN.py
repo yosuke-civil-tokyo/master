@@ -64,7 +64,6 @@ class ObjectNode(Variable):
         best_score = float('-inf')
 
         while True:
-            max_improvement = float('-inf')
             best_swap_index = None
 
             for i in range(len(current_ordering) - 1):
@@ -83,12 +82,9 @@ class ObjectNode(Variable):
                         variable.estimate_cpt()
 
                 score = self.BIC_all()
+                print(score)
 
-                # Calculate improvement
-                improvement = score - best_score
-
-                if improvement > max_improvement:
-                    max_improvement = improvement
+                if score > best_score:
                     best_swap_index = i
 
                 # Undo the swap
@@ -97,8 +93,9 @@ class ObjectNode(Variable):
             # If we found a swap that improves the score, perform the swap
             if best_swap_index is not None:
                 current_ordering[best_swap_index], current_ordering[best_swap_index + 1] = current_ordering[best_swap_index + 1], current_ordering[best_swap_index]
-                best_score += max_improvement
+                best_score = score
             else:
+                self.ordering = current_ordering
                 break  # No improving swap was found
 
     def BIC_all(self):
@@ -169,17 +166,33 @@ class ObjectNode(Variable):
     # Display the optimized structure
     def visualize_structure(self):
         G = nx.DiGraph()
-        
-        for var_name, variable in self.variables.items():
-            G.add_node(var_name)
-            for parent in variable.parents:
-                G.add_edge(parent.name, var_name)
-        
-        pos = nx.spring_layout(G)  # positions for all nodes
+        pos = {}  # Dictionary to hold position data
+        row_col = [0, 0]  # To keep track of row and column, used as mutable type for recursive modification
+
+        def draw_node(variables, ordering):
+            nonlocal row_col
+            for var_name in ordering:
+                variable = variables[var_name]
+                if isinstance(variable, ObjectNode):
+                    draw_node(variable.variables, variable.ordering)
+                else:
+                    G.add_node(var_name)
+                    pos[var_name] = (row_col[1], -row_col[0])  # Set the position for this node
+
+                    for parent in variable.parents:
+                        G.add_edge(parent.name, var_name)
+
+                    row_col[1] += 1
+                    if row_col[1] >= 3:  # Maximum number of columns
+                        row_col[1] = 0
+                        row_col[0] += 1
+
+        draw_node(self.variables, self.ordering)
+
         nx.draw(G, pos, with_labels=True, node_color="lightblue", font_size=16, node_size=700, font_color="black", font_weight="bold", arrowsize=20)
         plt.title("Bayesian Network Structure")
+        plt.axis("off")
         plt.show()
-    
 
 
 if __name__=="__main__":
