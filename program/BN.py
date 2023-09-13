@@ -50,7 +50,9 @@ class Variable:
             self.cpt[index] += 1
         
         # Normalize to get probabilities
-        self.cpt /= self.cpt.sum(axis=-1, keepdims=True)
+        norm = self.cpt.sum(axis=-1, keepdims=True)
+        np.place(norm, norm == 0, 1)
+        self.cpt /= norm
 
 
 if __name__ == "__main__":
