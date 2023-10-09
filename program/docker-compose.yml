@@ -1,0 +1,7 @@
+version: '3'
+services:
+  oobn:
+    build: .
+    ports:
+      - "80:80"
+    command: "/bin/bash"
