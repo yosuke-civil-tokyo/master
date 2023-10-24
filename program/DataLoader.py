@@ -59,11 +59,11 @@ class DataLoader:
         self.los_data = None  # Dataframe to store LOS data
         self.zone_data = None  # Dataframe to store Zone data
 
-    def load_pt_data(self, pt_csv_file_path):
+    def load_pt_data(self, pt_csv_file_path, data_types=None):
         # Read PT data from CSV with shift-jis encoding
         self.pt_data = pd.read_csv(pt_csv_file_path)
         
-    def load_los_data(self, los_csv_file_path, column_names={}):
+    def load_los_data(self, los_csv_file_path, data_types=None):
         # Read LOS data from CSV
         new_los_data = pd.read_csv(los_csv_file_path)
         pt_data = self.pt_data.dropna(subset=['出発地：ゾーンコード', '到着地：ゾーンコード'])[['出発地：ゾーンコード', '到着地：ゾーンコード']].astype(int)
@@ -75,12 +75,11 @@ class DataLoader:
                                 right_on=['発ゾーン', '着ゾーン'])
         
         # Add the new column to existing LOS data if exists
-        for key, value in column_names.items():
-            if self.los_data is None:
-                self.los_data = merged_data[['発ゾーン', '着ゾーン']+[key]].rename(columns={key: value})
-            else:
-                # concatenate the new column to existing LOS data
-                self.los_data = pd.concat([self.los_data, merged_data[[key]].rename(columns={key: value})], axis=1)
+        if self.los_data is None:
+            self.los_data = merged_data
+        else:
+            # concatenate the new column to existing LOS data
+            self.los_data = pd.concat([self.los_data, merged_data], axis=1)
 
     def load_zone_data(self, zone_csv_file_path):
         # Read Zone data from CSV
@@ -105,18 +104,28 @@ class DataLoader:
     def get_data(self, column_list):
         return self.to_variable(column_list)
     
-    # make a table combining pt_data and los_data with specified columns
-    def make_los_table(self, column_list):
+    # make a table combining pt_data and los_data
+    def make_los_table(self):
         # concatenate pt_data and los_data
         table = pd.concat([self.pt_data, self.los_data], axis=1)
-        # extract specified columns
-        table = table[column_list]
         return table
     
-    # discretize columns
     def discretize_dataframe(self, df, col_dict):
+        for col_name, value_mapping in col_dict.items():
+            if col_name in df.columns:
+                # Create a dictionary to map values using the provided conversion mapping
+                # conversion_dict = {int(key): value_mapping.get(int(key), np.nan) for key in df[col_name]}
+                df[col_name] = df[col_name].astype(int).map(value_mapping)
+        
+        # Remove rows with NaN
+        df = df.dropna(how='any', axis=0)
+        return df
+
+    # by continuous value
+    def discretize_dataframe_fromcon(self, df, col_dict):
         for col_name, bin_size in col_dict.items():
-            df[col_name] = pd.qcut(df[col_name].rank(method='first'), bin_size, labels=False)
+            print(col_name)
+            df[col_name] = pd.qcut(df[col_name].astype(float).rank(method='first'), bin_size, labels=False)
         return df
     
 
@@ -134,7 +143,7 @@ def make_walk_car(
     table = table[(table["代表交通手段：分類０"] == 1)|(table["代表交通手段：分類０"] == 10)]
 
     table = dl.extract_data(table, use_col.keys())
-    table = dl.discretize_dataframe(table, use_col)
+    table = dl.discretize_dataframe_fromcon(table, use_col)
     table = table.rename(columns=change_name)
 
     # set the table as dl.pt_data, with reset index
@@ -144,6 +153,49 @@ def make_walk_car(
         return table
 
     return dl
+
+def make_dataloader(
+        data_files=None, 
+        convert_dict=None,
+        convert_dict_continuous=None,
+        change_name_dict=None, 
+        return_table=False):
+    dl = DataLoader()
+    
+    # Load data files if provided
+    print("Start loading data")
+    if data_files is not None:
+        for file_path in data_files:
+            if "activityData" in file_path:
+                print("read activity data: {}".format(file_path))
+                dl.load_pt_data(file_path)
+            elif "losData" in file_path:
+                print("read los data: {}".format(file_path))
+                dl.load_los_data(file_path)
+            elif "zoneData" in file_path:
+                print("read zone data: {}".format(file_path))
+                dl.load_zone_data(file_path)
+
+    print("los processing")
+    table = dl.make_los_table()
+
+    print("descretization")
+    table = dl.extract_data(table, list(convert_dict.keys())+list(convert_dict_continuous.keys()))
+    table = dl.discretize_dataframe(table, convert_dict)
+    table = dl.discretize_dataframe_fromcon(table, convert_dict_continuous)
+    table = table.rename(columns=change_name_dict).astype(int)
+
+    # Set the table as dl.pt_data, with reset index
+    dl.pt_data = table.reset_index(drop=True)
+
+    print("Table:")
+    print(dl.pt_data)
+
+    if return_table:
+        return table
+
+    return dl
+
 
 # let's make pt_data only table
 def make_trip(use_col={"移動の目的":3, "目的種類：分類１":3, "年齢":3, "同行人数：人数":3}):
