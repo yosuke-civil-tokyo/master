@@ -1,3 +1,4 @@
+import os
 import time
 import pandas as pd
 import numpy as np
@@ -158,9 +159,18 @@ def make_dataloader(
         data_files=None, 
         convert_dict=None,
         convert_dict_continuous=None,
-        change_name_dict=None, 
+        change_name_dict=None,
+        case_name=None, 
         return_table=False):
     dl = DataLoader()
+
+    # Check if intermediate data exists
+    intermediate_file_path = f'./data/midData/{case_name}.csv'
+    if case_name and os.path.exists(intermediate_file_path):
+        print(f"Loading intermediate data from {intermediate_file_path}")
+        dl = DataLoader()
+        dl.pt_data = pd.read_csv(intermediate_file_path, dtype=int)
+        return dl
     
     # Load data files if provided
     print("Start loading data")
@@ -190,6 +200,12 @@ def make_dataloader(
 
     print("Table:")
     print(dl.pt_data)
+
+    # Save intermediate data to a CSV file
+    if case_name:
+        print(f"Saving intermediate data to {intermediate_file_path}")
+        os.makedirs('./data/midData', exist_ok=True)
+        dl.pt_data.to_csv(intermediate_file_path, index=False)
 
     if return_table:
         return table

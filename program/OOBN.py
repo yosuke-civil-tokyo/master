@@ -59,7 +59,6 @@ class ObjectNode(Variable):
         for var, pos in fixed_positions.items():
             current_ordering.remove(var)
             current_ordering.insert(pos, var)
-        print(current_ordering)
 
         best_score = float('-inf')
 
@@ -103,7 +102,7 @@ class ObjectNode(Variable):
         N = len(next(iter(self.variables.values())).get_data('input'))
         
         for variable in self.variables.values():
-            k = variable.cpt.size
+            k = sum(variable.cpt.shape)
             log_likelihood = self.calculate_log_likelihood(variable)
             score += log_likelihood - (k / 2) * math.log(N)
         
@@ -112,10 +111,12 @@ class ObjectNode(Variable):
     def BIC_sep(self, variable):
         N = len(variable.get_data('input'))
         
-        k = variable.cpt.size
+        k = sum(variable.cpt.shape)
         log_likelihood = self.calculate_log_likelihood(variable)
         score = log_likelihood - (k / 2) * math.log(N)
         
+        print("CPT size: ", k)
+        print("Log Likelihood: ", log_likelihood)
         return score
 
     def calculate_log_likelihood(self, variable):
@@ -144,8 +145,12 @@ class ObjectNode(Variable):
             variable.estimate_cpt()
             
             score = self.BIC_sep(variable)
+
+            print("Candidate Parents: ", [self.variables[var].name for var in subset])
+            print("Score: ", score)
             
             if score > best_score:
+                print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
                 best_score = score
                 best_parents = candidate_parents
         
