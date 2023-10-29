@@ -102,7 +102,7 @@ class ObjectNode(Variable):
         N = len(next(iter(self.variables.values())).get_data('input'))
         
         for variable in self.variables.values():
-            k = sum(variable.cpt.shape)
+            k = variable.cpt.ndim
             log_likelihood = self.calculate_log_likelihood(variable)
             score += log_likelihood - (k / 2) * math.log(N)
         
@@ -111,7 +111,7 @@ class ObjectNode(Variable):
     def BIC_sep(self, variable):
         N = len(variable.get_data('input'))
         
-        k = sum(variable.cpt.shape)
+        k = variable.cpt.ndim
         log_likelihood = self.calculate_log_likelihood(variable)
         score = log_likelihood - (k / 2) * math.log(N)
         
