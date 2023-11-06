@@ -166,8 +166,8 @@ class ObjectNode(Variable):
         variable.estimate_cpt()
 
         # check likelihood ratio
-        ll = self.calculate_log_likelihood(variable)
-        likelihood_ratio = np.exp(ll - LL0)
+        LL = self.calculate_log_likelihood(variable)
+        likelihood_ratio = (LL0 - LL) / LL0
         print("Likelihood Ratio: ", likelihood_ratio)
 
     # Setting data to each variable
