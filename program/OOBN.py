@@ -127,6 +127,13 @@ class ObjectNode(Variable):
             log_likelihood += math.log(prob)
         
         return log_likelihood
+    
+    def calculate_LL0(self, variable):
+        # For a variable with k states, the log-likelihood under the null model is N * log(1/k)
+        k = variable.get_states('input')
+        N = len(variable.get_data('input'))
+        log_likelihood = N * math.log(1 / k)
+        return log_likelihood
 
     def update_structure(self, ordering):
         for var_name in ordering:
@@ -138,6 +145,7 @@ class ObjectNode(Variable):
         best_score = float('-inf')
         
         preceding_vars = ordering[:ordering.index(variable.name)]
+        LL0 = self.calculate_LL0(variable)
         
         for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(len(preceding_vars) + 1)):
             candidate_parents = [self.variables[var] for var in subset]
@@ -156,6 +164,11 @@ class ObjectNode(Variable):
         
         variable.set_parents(best_parents)
         variable.estimate_cpt()
+
+        # check likelihood ratio
+        ll = self.calculate_log_likelihood(variable)
+        likelihood_ratio = np.exp(ll - LL0)
+        print("Likelihood Ratio: ", likelihood_ratio)
 
     # Setting data to each variable
     def set_data_from_dataloader(self, dataloader, column_list):
