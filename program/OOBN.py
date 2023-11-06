@@ -95,6 +95,10 @@ class ObjectNode(Variable):
                 best_score = score
             else:
                 self.ordering = current_ordering
+                print("best ordering")
+                self.update_structure(self.ordering)
+                score = self.BIC_all()
+                print("Final Score : ", score)
                 break  # No improving swap was found
 
     def BIC_all(self):
