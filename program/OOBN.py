@@ -14,18 +14,25 @@ class ObjectNode(Variable):
         super().__init__(name, states=None) 
         self.name = name
         self.variables = variables
+        self.input = []
         self.input_data = self.data
         self.output_data = self.data
         self.input_states = self.states
         self.output_states = self.states
+    
 
-    def set_data(self, data_array, data_type='input'):
+    def set_data(self, data_array, variable_name=None, data_type='input'):
         if data_type == 'input':
             self.input_data = np.array(data_array)
             self.input_states=int(np.max(data_array) + 1)
+            self.input.append(variable_name)
         elif data_type == 'output':
             self.output_data = np.array(data_array)
             self.output_states=int(np.max(data_array) + 1)
+
+    def get_variables(self, data_type='input'):
+        if data_type == 'input':
+            return {var_name: self.variables[var_name] for var_name in self.input}
 
     def get_data(self, data_type='input'):
         if data_type == 'input':
@@ -142,6 +149,8 @@ class ObjectNode(Variable):
     def update_structure(self, ordering):
         for var_name in ordering:
             variable = self.variables[var_name]
+            # skip if the variable is input type
+
             self.find_optimal_parents(variable, ordering)
 
     def find_optimal_parents(self, variable, ordering):
