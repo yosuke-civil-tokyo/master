@@ -14,18 +14,25 @@ class ObjectNode(Variable):
         super().__init__(name, states=None) 
         self.name = name
         self.variables = variables
+        self.input = []
         self.input_data = self.data
         self.output_data = self.data
         self.input_states = self.states
         self.output_states = self.states
+    
 
-    def set_data(self, data_array, data_type='input'):
+    def set_data(self, data_array, variable_name=None, data_type='input'):
         if data_type == 'input':
             self.input_data = np.array(data_array)
             self.input_states=int(np.max(data_array) + 1)
+            self.input.append(variable_name)
         elif data_type == 'output':
             self.output_data = np.array(data_array)
             self.output_states=int(np.max(data_array) + 1)
+
+    def get_variables(self, data_type='input'):
+        if data_type == 'input':
+            return {var_name: self.variables[var_name] for var_name in self.input}
 
     def get_data(self, data_type='input'):
         if data_type == 'input':
@@ -95,28 +102,40 @@ class ObjectNode(Variable):
                 best_score = score
             else:
                 self.ordering = current_ordering
+                print("best ordering")
+                self.update_structure(self.ordering)
+                score = self.BIC_all()
+                print("Final Score : ", score)
                 break  # No improving swap was found
 
     def BIC_all(self):
         score = 0
-        N = len(next(iter(self.variables.values())).get_data('input'))
         
         for variable in self.variables.values():
-            k = variable.cpt.ndim
-            log_likelihood = self.calculate_log_likelihood(variable)
-            score += log_likelihood - (k / 2) * math.log(N)
+            score += self.BIC_sep(variable)
         
         return score
     
     def BIC_sep(self, variable):
-        N = len(variable.get_data('input'))
-        
-        k = variable.cpt.ndim
-        log_likelihood = self.calculate_log_likelihood(variable)
-        score = log_likelihood - (k / 2) * math.log(N)
-        
-        print("CPT size: ", k)
-        print("Log Likelihood: ", log_likelihood)
+        # when the variable is an object node
+        if isinstance(variable, ObjectNode):
+            # calculate the score for each input variable in the object node
+            score = 0
+            for input_var_name in variable.input:
+                input_variable = variable.variables[input_var_name]
+                score += self.BIC_sep(input_variable)
+
+        else:
+            # when the variable is not an object node
+            N = len(variable.get_data('input'))
+
+            k = variable.cpt.ndim
+            log_likelihood = self.calculate_log_likelihood(variable)
+            score = log_likelihood - (k / 2) * math.log(N)
+            
+            print("CPT size: ", k)
+            print("Log Likelihood: ", log_likelihood)
+
         return score
 
     def calculate_log_likelihood(self, variable):
@@ -127,17 +146,37 @@ class ObjectNode(Variable):
             log_likelihood += math.log(prob)
         
         return log_likelihood
+    
+    def calculate_LL0(self, variable):
+        # For a variable with k states, the log-likelihood under the null model is N * log(1/k)
+        k = variable.get_states('input')
+        N = len(variable.get_data('input'))
+        log_likelihood = N * math.log(1 / k)
+        return log_likelihood
 
     def update_structure(self, ordering):
         for var_name in ordering:
-            variable = self.variables[var_name]
-            self.find_optimal_parents(variable, ordering)
+            # skip if the variable is input type in this object node
+            if var_name in self.input:
+                continue
 
-    def find_optimal_parents(self, variable, ordering):
+            variable = self.variables[var_name]
+            # if the variable is an object node, iterate over its input variables
+            if isinstance(variable, ObjectNode):
+                preceding_vars = ordering[:ordering.index(var_name)]
+                for input_var_name in variable.input:
+                    input_variable = variable.variables[input_var_name]
+                    # assuming that the input variable is not an object node
+                    self.find_optimal_parents(input_variable, preceding_vars)
+            else:
+                preceding_vars = ordering[:ordering.index(var_name)]
+                self.find_optimal_parents(variable, preceding_vars)
+
+    def find_optimal_parents(self, variable, preceding_vars):
         best_parents = []
         best_score = float('-inf')
         
-        preceding_vars = ordering[:ordering.index(variable.name)]
+        LL0 = self.calculate_LL0(variable)
         
         for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(len(preceding_vars) + 1)):
             candidate_parents = [self.variables[var] for var in subset]
@@ -156,6 +195,11 @@ class ObjectNode(Variable):
         
         variable.set_parents(best_parents)
         variable.estimate_cpt()
+
+        # check likelihood ratio
+        LL = self.calculate_log_likelihood(variable)
+        likelihood_ratio = (LL0 - LL) / LL0
+        print("Likelihood Ratio: ", likelihood_ratio)
 
     # Setting data to each variable
     def set_data_from_dataloader(self, dataloader, column_list):
