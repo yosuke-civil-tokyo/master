@@ -110,7 +110,6 @@ class ObjectNode(Variable):
 
     def BIC_all(self):
         score = 0
-        N = len(next(iter(self.variables.values())).get_data('input'))
         
         for variable in self.variables.values():
             score += self.BIC_sep(variable)
