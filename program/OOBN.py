@@ -148,16 +148,26 @@ class ObjectNode(Variable):
 
     def update_structure(self, ordering):
         for var_name in ordering:
+            # skip if the variable is input type in this object node
+            if var_name in self.input:
+                continue
+
             variable = self.variables[var_name]
-            # skip if the variable is input type
+            # if the variable is an object node, iterate over its input variables
+            if isinstance(variable, ObjectNode):
+                preceding_vars = ordering[:ordering.index(var_name)]
+                for input_var_name in variable.input:
+                    input_variable = variable.variables[input_var_name]
+                    # assuming that the input variable is not an object node
+                    self.find_optimal_parents(input_variable, preceding_vars)
+            else:
+                preceding_vars = ordering[:ordering.index(var_name)]
+                self.find_optimal_parents(variable, preceding_vars)
 
-            self.find_optimal_parents(variable, ordering)
-
-    def find_optimal_parents(self, variable, ordering):
+    def find_optimal_parents(self, variable, preceding_vars):
         best_parents = []
         best_score = float('-inf')
         
-        preceding_vars = ordering[:ordering.index(variable.name)]
         LL0 = self.calculate_LL0(variable)
         
         for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(len(preceding_vars) + 1)):
