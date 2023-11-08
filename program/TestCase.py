@@ -33,10 +33,12 @@ def exTest(config):
 
         # If the object has defined input/output variables, set them
         if "input" in obj_conf and "output" in obj_conf:
-            input_var = change_name_dict.get(obj_conf["input"], obj_conf["input"])
-            output_var = change_name_dict.get(obj_conf["output"], obj_conf["output"])
-            objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[input_var].get_data(), 'input')
-            objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[output_var].get_data(), 'output')
+            for input_var in obj_conf["input"]:
+                input_var = change_name_dict.get(input_var, input_var)
+                objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[input_var].get_data(), input_var, 'input')
+            for output_var in obj_conf["output"]:
+                output_var = change_name_dict.get(output_var, output_var)
+                objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[output_var].get_data(), output_var, 'output')
 
     # Now, iterate again to set up object relationships after all have been initialized
     for obj_conf in object_configs:

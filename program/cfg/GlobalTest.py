@@ -48,8 +48,8 @@ Configs = {
             },
             {"name": "Mode",
               "variables": ["TripNumber", "WalkTime", "TrainTime", "Mode"],
-              "input": "TripNumber",
-              "output": "Mode",
+              "input": ["TripNumber"],
+              "output": ["Mode"],
               "fix": {"TripNumber": 0, "Mode": 4}
             }
         ],
