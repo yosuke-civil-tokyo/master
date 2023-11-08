@@ -113,21 +113,30 @@ class ObjectNode(Variable):
         N = len(next(iter(self.variables.values())).get_data('input'))
         
         for variable in self.variables.values():
-            k = variable.cpt.ndim
-            log_likelihood = self.calculate_log_likelihood(variable)
-            score += log_likelihood - (k / 2) * math.log(N)
+            score += self.BIC_sep(variable)
         
         return score
     
     def BIC_sep(self, variable):
-        N = len(variable.get_data('input'))
-        
-        k = variable.cpt.ndim
-        log_likelihood = self.calculate_log_likelihood(variable)
-        score = log_likelihood - (k / 2) * math.log(N)
-        
-        print("CPT size: ", k)
-        print("Log Likelihood: ", log_likelihood)
+        # when the variable is an object node
+        if isinstance(variable, ObjectNode):
+            # calculate the score for each input variable in the object node
+            score = 0
+            for input_var_name in variable.input:
+                input_variable = variable.variables[input_var_name]
+                score += self.BIC_sep(input_variable)
+
+        else:
+            # when the variable is not an object node
+            N = len(variable.get_data('input'))
+
+            k = variable.cpt.ndim
+            log_likelihood = self.calculate_log_likelihood(variable)
+            score = log_likelihood - (k / 2) * math.log(N)
+            
+            print("CPT size: ", k)
+            print("Log Likelihood: ", log_likelihood)
+
         return score
 
     def calculate_log_likelihood(self, variable):

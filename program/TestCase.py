@@ -55,7 +55,10 @@ def exTest(config):
     # Visualize the structures
     for obj_conf in object_configs:
         print(f"Visualizing structure for {obj_conf['name']}...")
-        objects[obj_conf['name']].visualize_structure()
+        try:
+            objects[obj_conf['name']].visualize_structure()
+        except:
+            print("Error: Could not visualize structure of Object \"{}\"".format(obj_conf['name']))
 
 
 if __name__ == "__main__":
