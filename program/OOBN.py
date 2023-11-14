@@ -131,7 +131,7 @@ class ObjectNode(Variable):
 
             k = variable.cpt.ndim
             log_likelihood = self.calculate_log_likelihood(variable)
-            score = log_likelihood - (k / 2) * math.log(N)
+            score = log_likelihood - k * math.log(N)
             
             print("CPT size: ", k)
             print("Log Likelihood: ", log_likelihood)
