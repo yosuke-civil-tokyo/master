@@ -53,6 +53,7 @@ Configs = {
               "fix": {"TripNumber": 0, "Mode": 4}
             }
         ],
+        "numrows": 10000,
     },
     "example3": {
         "case_name": "example3",
@@ -105,5 +106,6 @@ Configs = {
               "fix": {"Mode": 5}
             }
         ],
+        "numrows": 10000,
     }
 }

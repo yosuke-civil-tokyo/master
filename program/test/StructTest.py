@@ -24,6 +24,9 @@ def exTest(config):
     dl = make_dataloader(data_files, convert_dict, convert_dict_continuous, change_name_dict, case_name)
     print("data num : ", len(dl.pt_data))
 
+    # use config["numrows"] to limit the number of rows
+    dl.pt_data = dl.pt_data[:config["numrows"]]
+    
     # list of object
     objects = {}
 

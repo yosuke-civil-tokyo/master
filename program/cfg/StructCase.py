@@ -46,5 +46,6 @@ Configs = {
               "fix": {},
             }
         ],
+        "numrows": 10000,
     }
 }
