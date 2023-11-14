@@ -6,7 +6,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import argparse
 # packages
 from cfg.StructCase import Configs
-from data.DataLoader import make_dataloader
+from dl.DataLoader import make_dataloader
 from model.OOBN import ObjectNode
 from model.BN import Variable
 

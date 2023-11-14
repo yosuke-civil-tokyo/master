@@ -1,6 +1,6 @@
 from model.OOBN import ObjectNode
 from model.BN import Variable 
-from data.DataLoader import DataLoader, make_walk_car
+from dl.DataLoader import DataLoader, make_walk_car
 
 def main():
     use_col={"自動車運転免許保有の状況": 3, "WalkTime": 3, "CarTime": 3, "トリップ数": 3, "代表交通手段：分類０": 2,
