@@ -5,7 +5,7 @@ import random
 import networkx as nx
 import matplotlib.pyplot as plt
 
-from BN import Variable
+from model.BN import Variable
 
 
 # ObjectNode class definition
@@ -133,8 +133,8 @@ class ObjectNode(Variable):
             log_likelihood = self.calculate_log_likelihood(variable)
             score = log_likelihood - (k / 2) * math.log(N)
             
-            print("CPT size: ", k)
-            print("Log Likelihood: ", log_likelihood)
+            # print("CPT size: ", k)
+            # print("Log Likelihood: ", log_likelihood)
 
         return score
 

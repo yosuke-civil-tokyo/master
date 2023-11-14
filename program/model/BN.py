@@ -54,6 +54,13 @@ class Variable:
         np.place(norm, norm == 0, 1)
         self.cpt /= norm
 
+    def train_test_split(self, split_ratio=0.8):
+        # Split the data into train and test sets
+        total_data = self.get_data('input')
+        split_index = int(len(total_data) * split_ratio)
+        self.train_data = total_data[:split_index]
+        self.test_data = total_data[split_index:]
+
 
 if __name__ == "__main__":
     # Simulated data for demonstration

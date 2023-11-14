@@ -1,11 +1,14 @@
-# list the experiment case for OOBN
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# list the structure optimization experiment case
 import argparse
 # packages
-from cfg.GlobalCase import Configs
-from DataLoader import make_dataloader
-from OOBN import ObjectNode
-from BN import Variable
-from DataClalss import pt_data_types, walk_data_types, car_data_types
+from cfg.StructCase import Configs
+from data.DataLoader import make_dataloader
+from model.OOBN import ObjectNode
+from model.BN import Variable
 
 # example test case
 def exTest(config):
@@ -62,7 +65,7 @@ def exTest(config):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run an experiment")
+    parser = argparse.ArgumentParser(description="Run a structure optimization experiment")
 
     # add the arguments
     parser.add_argument("CaseName",
