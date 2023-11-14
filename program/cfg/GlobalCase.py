@@ -29,7 +29,7 @@ Configs = {
             "同行人数：人数": 3,
         },
         "change_name_dict": {
-            # "自動車運転免許保有の状況": "License",
+            "自動車運転免許保有の状況": "License",
             "トリップ数": "TripNumber",
             "代表交通手段：分類０": "Mode",
             "移動の目的": "Purpose",
