@@ -1,7 +1,7 @@
 # list the experiment case for OOBN
 import argparse
 # packages
-from cfg.GlobalTest import Configs
+from cfg.GlobalCase import Configs
 from DataLoader import make_dataloader
 from OOBN import ObjectNode
 from BN import Variable
