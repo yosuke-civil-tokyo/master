@@ -129,9 +129,9 @@ class ObjectNode(Variable):
             # when the variable is not an object node
             N = len(variable.get_data('input'))
 
-            k = variable.cpt.ndim
+            k = variable.cpt.size
             log_likelihood = self.calculate_log_likelihood(variable)
-            score = log_likelihood - k * math.log(N)
+            score = log_likelihood - (k / 2) * math.log(N)
             
             print("CPT size: ", k)
             print("Log Likelihood: ", log_likelihood)

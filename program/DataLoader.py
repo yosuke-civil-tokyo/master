@@ -89,6 +89,10 @@ class DataLoader:
     # extract columns, and remove rows with NaN
     def extract_data(self, df, column_list):
         return df[column_list].dropna()
+    
+    # use rows with NaN by replacing with 0
+    def fill_data(self, df, column_list):
+        return df[column_list].fillna(0)
         
     def to_variable(self, column_list):
         variables = {}
@@ -119,14 +123,14 @@ class DataLoader:
                 df[col_name] = df[col_name].astype(int).map(value_mapping)
         
         # Remove rows with NaN
-        df = df.dropna(how='any', axis=0)
+        df = df.fillna(0)
         return df
 
     # by continuous value
     def discretize_dataframe_fromcon(self, df, col_dict):
         for col_name, bin_size in col_dict.items():
             print(col_name)
-            df[col_name] = pd.qcut(df[col_name].astype(float).rank(method='first'), bin_size, labels=False)
+            df[col_name] = pd.qcut(df[col_name].astype(float).rank(method='first'), bin_size, labels=False).values + 1
         return df
     
 
@@ -190,7 +194,7 @@ def make_dataloader(
     table = dl.make_los_table()
 
     print("descretization")
-    table = dl.extract_data(table, list(convert_dict.keys())+list(convert_dict_continuous.keys()))
+    table = dl.fill_data(table, list(convert_dict.keys())+list(convert_dict_continuous.keys()))
     table = dl.discretize_dataframe(table, convert_dict)
     table = dl.discretize_dataframe_fromcon(table, convert_dict_continuous)
     table = table.rename(columns=change_name_dict).astype(int)
