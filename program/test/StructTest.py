@@ -77,13 +77,12 @@ def exTest(config):
             for output_var in obj_conf["output"]:
                 output_var = change_name_dict.get(output_var, output_var)
                 objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[output_var].get_data(), output_var, 'output')
-    
+            
     # evaluate performance with log likelihood
     print("Evaluating performance...")
-    for obj in objects:
+    for obj in objects.values():
         if evaluate_target in obj.variables:
             obj.evaluate(evaluate_target)
-
 
     # Visualize the structures
     for obj_conf in object_configs:
@@ -92,6 +91,7 @@ def exTest(config):
             objects[obj_conf['name']].visualize_structure()
         except:
             print("Error: Could not visualize structure of Object \"{}\"".format(obj_conf['name']))
+
 
 
 if __name__ == "__main__":

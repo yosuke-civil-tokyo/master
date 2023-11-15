@@ -33,9 +33,11 @@ class Variable:
         if parent_data is None:
             parent_data = np.stack([parent.get_data('output') for parent in self.parents], axis=-1)
         # Create an index tuple to access the correct slice in the CPT NumPy array
-        index = tuple(parent_data.tolist())
-        # Fetch the probabilities from the CPT using the index
-        return self.cpt[index]
+        prob = self.cpt[tuple(parent_data.tolist())]
+        if np.sum(prob) == 0:
+            return [1 / self.states] * self.states
+        
+        return prob
     
     def estimate_cpt(self):
         if self.get_data('input') is None:
@@ -73,16 +75,24 @@ class Variable:
         for i, val in enumerate(self.get_data('input')):
             parent_states = np.array([parent.get_data('output')[i] for parent in self.parents])
             prob = self.probability(parent_states)[val]
-            log_likelihood += math.log(prob)
+            log_likelihood += math.log(prob + 1e-6)
         
         return log_likelihood
     
     # elasticity of prediction
     def elasticity(self, change_rate=0.01):
         # array of parents' states
-        original_data = np.concatenate([parent.get_data('output') for parent in self.parents], axis=-1)
-        random_data = np.random.choice(original_data.shape[1], size=len(original_data))
-        modified_data = np.where(np.random.rand(len(original_data)) < change_rate, random_data, original_data)
+        original_data = np.concatenate([parent.get_data('output') for parent in self.parents], axis=-1).reshape((-1, len(self.parents)))
+        random_data = np.concatenate(
+            [np.random.choice(parent.states, size=len(parent.get_data('output'))) for parent in self.parents],
+             axis=-1).reshape((-1, len(self.parents)))
+        # modified_data = 
+
+        modified_data = np.where((np.random.rand(len(original_data)) < change_rate).reshape((len(original_data), 1)), random_data, original_data)
+
+        print(original_data, len(original_data))
+        print(random_data, len(random_data))
+        print(modified_data, modified_data.shape)
 
         # prediction results from original data and modified data
         original_prediction = np.array([self.generate(d) for d in original_data])

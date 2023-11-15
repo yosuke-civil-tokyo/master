@@ -173,6 +173,7 @@ class ObjectNode(Variable):
                 self.find_optimal_parents(variable, preceding_vars)
 
     def find_optimal_parents(self, variable, preceding_vars):
+        print("Finding optimal parents for variable: ", variable.name)
         best_parents = []
         best_score = float('-inf')
         
@@ -185,8 +186,8 @@ class ObjectNode(Variable):
             
             score = self.BIC_sep(variable)
 
-            print("Candidate Parents: ", [self.variables[var].name for var in subset])
-            print("Score: ", score)
+            # print("Candidate Parents: ", [self.variables[var].name for var in subset])
+            # print("Score: ", score)
             
             if score > best_score:
                 print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
@@ -216,10 +217,17 @@ class ObjectNode(Variable):
         print("Evaluating performance...")
         print("Target Variable: ", target_variable_name)
         target_variable = self.variables[target_variable_name]
-        ll = target_variable.log_likelihood()
-        elasticity = target_variable.elasticity(change_rate)
 
+        # check log-likelihood
+        ll = target_variable.log_likelihood()
         print("Log Likelihood: ", ll)
+
+        # check elasticity
+        try:
+            elasticity = target_variable.elasticity(change_rate)
+        except:
+            print("Error: Could not calculate elasticity.")
+            print("This is mainly because the variable has no parents.")
         print("Elasticity: ", elasticity)
 
     # Display the optimized structure
