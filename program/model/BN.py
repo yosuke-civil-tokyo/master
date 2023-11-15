@@ -66,7 +66,7 @@ class Variable:
         # sample from probability array
         return np.random.choice(self.states, p=prob)
 
-    # to calculate score
+    # evaluation functions
     # log likelihood
     def log_likelihood(self, parent_states=None):
         log_likelihood = 0
@@ -76,6 +76,21 @@ class Variable:
             log_likelihood += math.log(prob)
         
         return log_likelihood
+    
+    # elasticity of prediction
+    def elasticity(self, change_rate=0.01):
+        # array of parents' states
+        original_data = np.concatenate([parent.get_data('output') for parent in self.parents], axis=-1)
+        random_data = np.random.choice(original_data.shape[1], size=len(original_data))
+        modified_data = np.where(np.random.rand(len(original_data)) < change_rate, random_data, original_data)
+
+        # prediction results from original data and modified data
+        original_prediction = np.array([self.generate(d) for d in original_data])
+        modified_prediction = np.array([self.generate(d) for d in modified_data])
+
+        return np.mean(original_prediction != modified_prediction)
+    
+
 
 
 
