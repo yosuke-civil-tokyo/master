@@ -204,13 +204,31 @@ class ObjectNode(Variable):
     # Setting data to each variable
     def set_data_from_dataloader(self, dataloader, column_list):
         variables = dataloader.get_data(column_list)
-        
         for name, variable in variables.items():
             if name in self.variables:
                 self.variables[name].set_data(variable.get_data('input'), name)
             else:
                 # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
                 self.add_variable(variable)
+
+    def elasticity_test(self, target_variable_name, change_rate=0.01):
+        target_variable = self.variables[target_variable_name]
+        original_data = target_variable.get_data()
+        # change_rate or data is randomly changed to another label
+        random_data = np.random.choice(target_variable.get_states(), size=len(original_data))
+        modified_data = np.where(np.random.rand(len(original_data)) < change_rate, random_data, original_data)
+
+        # Set the modified data
+        target_variable.set_data(modified_data)
+
+        """
+        ----
+        Perform some analysis or re-calculation here to observe the impact here
+        ----
+        """
+
+        # Reset the data to its original state after the test
+        target_variable.set_data(original_data)
 
     # Display the optimized structure
     def visualize_structure(self):

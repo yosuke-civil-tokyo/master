@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 class Variable:
     def __init__(self, name, states):
@@ -26,9 +27,13 @@ class Variable:
     def get_states(self, input_or_output='input'):
         return self.states
 
-    def probability(self, parent_states):
+    # this is for future use, after vectorization
+    def probability(self, parent_data=None):
+        # use table concatenation of self.data in parent variables, is parent_data is None
+        if parent_data is None:
+            parent_data = np.stack([parent.get_data('output') for parent in self.parents], axis=-1)
         # Create an index tuple to access the correct slice in the CPT NumPy array
-        index = tuple(parent_states.tolist())
+        index = tuple(parent_data.tolist())
         # Fetch the probabilities from the CPT using the index
         return self.cpt[index]
     
@@ -54,12 +59,25 @@ class Variable:
         np.place(norm, norm == 0, 1)
         self.cpt /= norm
 
-    def train_test_split(self, split_ratio=0.8):
-        # Split the data into train and test sets
-        total_data = self.get_data('input')
-        split_index = int(len(total_data) * split_ratio)
-        self.train_data = total_data[:split_index]
-        self.test_data = total_data[split_index:]
+    # to sample
+    def generate(self, parent_states):
+        # probability array
+        prob = self.probability(parent_states)
+        # sample from probability array
+        return np.random.choice(self.states, p=prob)
+
+    # to calculate score
+    # log likelihood
+    def log_likelihood(self, parent_states=None):
+        log_likelihood = 0
+        for i, val in enumerate(self.get_data('input')):
+            parent_states = np.array([parent.get_data('output')[i] for parent in self.parents])
+            prob = self.probability(parent_states)[val]
+            log_likelihood += math.log(prob)
+        
+        return log_likelihood
+
+
 
 
 if __name__ == "__main__":
