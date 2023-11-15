@@ -211,24 +211,16 @@ class ObjectNode(Variable):
                 # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
                 self.add_variable(variable)
 
-    def elasticity_test(self, target_variable_name, change_rate=0.01):
+    # Evaluate performance
+    def evaluate(self, target_variable_name, change_rate=0.01):
+        print("Evaluating performance...")
+        print("Target Variable: ", target_variable_name)
         target_variable = self.variables[target_variable_name]
-        original_data = target_variable.get_data()
-        # change_rate or data is randomly changed to another label
-        random_data = np.random.choice(target_variable.get_states(), size=len(original_data))
-        modified_data = np.where(np.random.rand(len(original_data)) < change_rate, random_data, original_data)
+        ll = target_variable.log_likelihood()
+        elasticity = target_variable.elasticity(change_rate)
 
-        # Set the modified data
-        target_variable.set_data(modified_data)
-
-        """
-        ----
-        Perform some analysis or re-calculation here to observe the impact here
-        ----
-        """
-
-        # Reset the data to its original state after the test
-        target_variable.set_data(original_data)
+        print("Log Likelihood: ", ll)
+        print("Elasticity: ", elasticity)
 
     # Display the optimized structure
     def visualize_structure(self):

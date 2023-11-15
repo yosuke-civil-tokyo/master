@@ -68,7 +68,7 @@ class Variable:
 
     # evaluation functions
     # log likelihood
-    def log_likelihood(self, parent_states=None):
+    def log_likelihood(self):
         log_likelihood = 0
         for i, val in enumerate(self.get_data('input')):
             parent_states = np.array([parent.get_data('output')[i] for parent in self.parents])
