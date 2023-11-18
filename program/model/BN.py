@@ -68,12 +68,17 @@ class Variable:
     # evaluation functions
     # log likelihood
     def log_likelihood(self):
-        log_likelihood = 0
-        for i, val in enumerate(self.get_data('input')):
-            parent_states = np.array([parent.get_data('output')[i] for parent in self.parents])
-            prob = self.probability(parent_states)[val]
-            log_likelihood += math.log(prob + 1e-6)
-        
+        data = self.get_data('input')
+        if self.parents:
+            # When there are parent variables
+            parent_data = [parent.get_data('output') for parent in self.parents]
+            indices = np.stack([parent.get_data('output') for parent in self.parents] + [data], 0)
+            probs = self.cpt[indices]
+        else:
+            # When there are no parent variables (independent variable)
+            probs = self.cpt[data]
+
+        log_likelihood = np.sum(np.nan_to_num(np.log(probs + 1e-6)))  # Adding a small constant to avoid log(0)
         return log_likelihood
     
     # elasticity of prediction
