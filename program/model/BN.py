@@ -48,18 +48,15 @@ class Variable:
         # Initialize CPT with zeros
         self.cpt = np.zeros(num_states)
         
-        # Compute the dimensions of the parent data
-        parent_dims = [parent.get_data('output') for parent in self.parents]
-        
-        # Calculate joint counts
-        for i, val in enumerate(self.get_data('input')):
-            index = tuple(parent[i] for parent in parent_dims) + (val,)
-            self.cpt[index] += 1
-        
+        # Compute the indices for each data point
+        indices = np.vstack([parent.get_data('output') for parent in self.parents] + [self.get_data('input')])
+
+        # Vectorized calculation of counts
+        np.add.at(self.cpt, tuple(indices), 1)
+
         # Normalize to get probabilities
-        norm = self.cpt.sum(axis=-1, keepdims=True)
-        np.place(norm, norm == 0, 1)
-        self.cpt /= norm
+        self.cpt /= self.cpt.sum(axis=-1, keepdims=True)
+        
 
     # to sample
     def generate(self, parent_states):
@@ -89,10 +86,6 @@ class Variable:
         # modified_data = 
 
         modified_data = np.where((np.random.rand(len(original_data)) < change_rate).reshape((len(original_data), 1)), random_data, original_data)
-
-        print(original_data, len(original_data))
-        print(random_data, len(random_data))
-        print(modified_data, modified_data.shape)
 
         # prediction results from original data and modified data
         original_prediction = np.array([self.generate(d) for d in original_data])

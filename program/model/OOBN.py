@@ -139,12 +139,18 @@ class ObjectNode(Variable):
         return score
 
     def calculate_log_likelihood(self, variable):
-        log_likelihood = 0
-        for i, val in enumerate(variable.get_data('input')):
-            parent_states = np.array([parent.get_data('output')[i] for parent in variable.parents])
-            prob = variable.probability(parent_states)[val]
-            log_likelihood += math.log(prob)
-        
+        if variable.parents:
+            # When there are parent variables
+            data = variable.get_data('input')
+            indices = np.stack([parent.get_data('output') for parent in variable.parents] + [data], 0)
+            # get the probability of each data point
+            probs = variable.cpt[tuple(indices)]
+        else:
+            # When there are no parent variables (independent variable)
+            data = variable.get_data('input')
+            probs = variable.cpt[data]
+
+        log_likelihood = np.sum(np.log(probs))
         return log_likelihood
     
     def calculate_LL0(self, variable):
