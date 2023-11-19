@@ -3,8 +3,8 @@ import time
 import pandas as pd
 import numpy as np
 
-from BN import Variable
-from OOBN import ObjectNode
+from model.BN import Variable
+from model.OOBN import ObjectNode
 
 # Class for Personal Features
 class PersonalFeature:
@@ -132,6 +132,19 @@ class DataLoader:
             print(col_name)
             df[col_name] = pd.qcut(df[col_name].astype(float).rank(method='first'), bin_size, labels=False).values + 1
         return df
+    
+    # split data for train and test
+    def train_test_split(self, split_ratio=0.8):
+        # Split the data into train and test sets
+        total_data = self.pt_data
+        split_index = int(len(total_data) * split_ratio)
+        train_data = total_data[:split_index]
+        test_data = total_data[split_index:]
+
+        # set data
+        self.train_data = train_data
+        self.test_data = test_data
+        return train_data, test_data
     
 
 # let's make simple los data for each trip

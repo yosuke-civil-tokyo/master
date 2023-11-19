@@ -1,11 +1,14 @@
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 # list the experiment case for OOBN
 import argparse
 # packages
 from cfg.GlobalCase import Configs
-from DataLoader import make_dataloader
-from OOBN import ObjectNode
-from BN import Variable
-from DataClalss import pt_data_types, walk_data_types, car_data_types
+from dl.DataLoader import make_dataloader
+from model.OOBN import ObjectNode
+from model.BN import Variable
 
 # example test case
 def exTest(config):
@@ -20,6 +23,9 @@ def exTest(config):
     print("Loading data...")
     dl = make_dataloader(data_files, convert_dict, convert_dict_continuous, change_name_dict, case_name)
     print("data num : ", len(dl.pt_data))
+
+    # use config["numrows"] to limit the number of rows
+    dl.pt_data = dl.pt_data[:config["numrows"]]
 
     # list of object
     objects = {}
