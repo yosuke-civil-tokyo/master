@@ -89,9 +89,8 @@ class Variable:
         data = self.get_data('input')
         if self.parents:
             # When there are parent variables
-            parent_data = [parent.get_data('output') for parent in self.parents]
             indices = np.stack([parent.get_data('output') for parent in self.parents] + [data], 0)
-            probs = self.cpt[indices]
+            probs = self.cpt[tuple(indices)]
         else:
             # When there are no parent variables (independent variable)
             probs = self.cpt[data]

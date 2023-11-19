@@ -195,10 +195,10 @@ class ObjectNode(Variable):
                 for input_var_name in variable.input:
                     input_variable = variable.variables[input_var_name]
                     # assuming that the input variable is not an object node
-                    self.find_optimal_parents(input_variable, preceding_vars)
+                    self.set_optimal_parents(input_variable, preceding_vars)
             else:
                 preceding_vars = ordering[:ordering.index(var_name)]
-                self.find_optimal_parents(variable, preceding_vars)
+                self.set_optimal_parents(variable, preceding_vars)
 
     def find_optimal_parents(self, variable, preceding_vars):
         print("Finding optimal parents for variable: ", variable)
@@ -225,6 +225,36 @@ class ObjectNode(Variable):
         print("Likelihood Ratio: ", likelihood_ratio)
         """
         return best_parents, best_cpt
+    
+    def set_optimal_parents(self, variable, preceding_vars):
+        print("Finding optimal parents for variable: ", variable.name)
+        best_parents = []
+        best_score = float('-inf')
+        
+        LL0 = self.calculate_LL0(variable)
+        
+        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(len(preceding_vars) + 1)):
+            candidate_parents = [self.variables[var] for var in subset]
+            variable.set_parents(candidate_parents)
+            variable.estimate_cpt()
+            
+            score = self.BIC_sep(variable)
+
+            # print("Candidate Parents: ", [self.variables[var].name for var in subset])
+            # print("Score: ", score)
+            
+            if score > best_score:
+                print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
+                best_score = score
+                best_parents = candidate_parents
+        
+        variable.set_parents(best_parents)
+        variable.estimate_cpt()
+
+        # check likelihood ratio
+        LL = self.calculate_log_likelihood(variable)
+        likelihood_ratio = (LL0 - LL) / LL0
+        print("Likelihood Ratio: ", likelihood_ratio)
 
     # Setting data to each variable
     def set_data_from_dataloader(self, dataloader, column_list):
