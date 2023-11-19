@@ -56,6 +56,24 @@ class Variable:
 
         # Normalize to get probabilities
         self.cpt /= self.cpt.sum(axis=-1, keepdims=True)
+
+    def estimate_cpt_with_parents(self, parent_names, variables_dict):
+        parents = [variables_dict[name] for name in parent_names]
+
+        num_states = [parent.get_states('output') for parent in parents] + [self.get_states('input')]
+        
+        # Initialize CPT with zeros
+        cpt = np.zeros(num_states)
+        
+        # Compute the indices for each data point
+        indices = np.vstack([parent.get_data('output') for parent in parents] + [self.get_data('input')])
+
+        # Vectorized calculation of counts
+        np.add.at(cpt, tuple(indices), 1)
+
+        # Normalize to get probabilities
+        cpt /= cpt.sum(axis=-1, keepdims=True)
+        return cpt
         
 
     # to sample

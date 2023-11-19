@@ -76,8 +76,8 @@ class ObjectNode(Variable):
             ordering = current_ordering.copy()
             ordering[pair[0]], ordering[pair[1]] = ordering[pair[1]], ordering[pair[0]]
             # update structure
-            self.update_structure(current_ordering)
-            score = self.BIC_all()
+            score = self.score_ordering(current_ordering)
+            # score = self.BIC_all()
 
             return score, ordering
         
@@ -97,48 +97,39 @@ class ObjectNode(Variable):
         final_score = self.BIC_all()
         print("Final Score : ", final_score)
 
+    def score_ordering(self, ordering):
+        name_to_cpt = {}
+        name_to_parents = {var_name: [] for var_name in self.variables.keys()}
 
-        """
-        while True:
-            best_swap_index = None
+        for var_name in ordering:
+            preceding_vars = ordering[:ordering.index(var_name)]
+            best_parents, best_cpt = self.find_optimal_parents(var_name, preceding_vars)
+            name_to_parents[var_name] = best_parents
+            name_to_cpt[var_name] = best_cpt
 
-            for i in range(len(current_ordering) - 1):
+        total_score = sum(self.temp_BIC_sep(var_name, name_to_parents, name_to_cpt) for var_name in ordering)
+        return total_score
 
-                # Skip over fixed positions
-                if current_ordering[i] in fixed_positions.keys() or current_ordering[i+1] in fixed_positions.keys():
-                    continue
-                # Temporarily swap and update structure
-                current_ordering[i], current_ordering[i + 1] = current_ordering[i + 1], current_ordering[i]
-                self.update_structure(current_ordering)
+    def temp_BIC_score(self, var_name, parent_names, cpt):
+        # Calculate the BIC score for a given variable, its parents, and its CPT
+        variable = self.variables[var_name]
+        N = len(variable.get_data('input'))
+        k = cpt.size
+        log_likelihood = self.temp_calculate_log_likelihood(var_name, parent_names, cpt)
+        score = log_likelihood - (k / 2) * math.log(N)
+        return score
 
-                # Estimate CPT and calculate BIC score
-                for var_name in current_ordering:
-                    variable = self.variables[var_name]
-                    if variable.parents:
-                        variable.estimate_cpt()
-
-                score = self.BIC_all()
-                print(score)
-
-                if score > best_score:
-                    best_swap_index = i
-
-                # Undo the swap
-                current_ordering[i], current_ordering[i + 1] = current_ordering[i + 1], current_ordering[i]
-
-            # If we found a swap that improves the score, perform the swap
-            if best_swap_index is not None:
-                current_ordering[best_swap_index], current_ordering[best_swap_index + 1] = current_ordering[best_swap_index + 1], current_ordering[best_swap_index]
-                best_score = score
-            else:
-                self.ordering = current_ordering
-                print("best ordering")
-                self.update_structure(self.ordering)
-                score = self.BIC_all()
-                print("Final Score : ", score)
-                break  # No improving swap was found
-        """
-
+    def temp_calculate_log_likelihood(self, var_name, name_to_parents, cpt):
+        # Implement the logic similar to calculate_log_likelihood but use the provided CPT and parent names
+        variable = self.variables[var_name]
+        data = variable.get_data('input')
+        if name_to_parents[var_name]:
+            indices = np.stack([self.variables[parent_name].get_data('output') for parent_name in name_to_parents[var_name]] + [data], 0)
+            probs = cpt[tuple(indices)]
+        else:
+            probs = cpt[data]
+        log_likelihood = np.sum(np.log(probs))
+        return log_likelihood
 
     def BIC_all(self):
         score = 0
@@ -212,32 +203,29 @@ class ObjectNode(Variable):
     def find_optimal_parents(self, variable, preceding_vars):
         print("Finding optimal parents for variable: ", variable.name)
         best_parents = []
+        best_cpt = None
         best_score = float('-inf')
         
         LL0 = self.calculate_LL0(variable)
         
         for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(len(preceding_vars) + 1)):
-            candidate_parents = [self.variables[var] for var in subset]
-            variable.set_parents(candidate_parents)
-            variable.estimate_cpt()
+            parent_names = list(subset)
+            cpt = variable.estimate_cpt_with_parents(parent_names, self.variables)
+            score = self.temp_BIC_score(variable.name, parent_names, cpt)
+            if score > best_score:
+                print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
+                best_score = score
+                best_parents = parent_names
+                best_cpt = cpt
             
             score = self.BIC_sep(variable)
-
-            # print("Candidate Parents: ", [self.variables[var].name for var in subset])
-            # print("Score: ", score)
-            
-            if score > best_score:
-                print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
-                best_score = score
-                best_parents = candidate_parents
-        
-        variable.set_parents(best_parents)
-        variable.estimate_cpt()
-
+        """
         # check likelihood ratio
         LL = self.calculate_log_likelihood(variable)
         likelihood_ratio = (LL0 - LL) / LL0
         print("Likelihood Ratio: ", likelihood_ratio)
+        """
+        return best_parents, best_cpt
 
     # Setting data to each variable
     def set_data_from_dataloader(self, dataloader, column_list):
