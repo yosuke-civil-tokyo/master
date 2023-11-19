@@ -4,6 +4,7 @@ import numpy as np
 import random
 import networkx as nx
 import matplotlib.pyplot as plt
+from concurrent.futures import ProcessPoolExecutor
 
 from model.BN import Variable
 
@@ -68,7 +69,36 @@ class ObjectNode(Variable):
             current_ordering.insert(pos, var)
 
         best_score = float('-inf')
+        improvement = True
+        swap_pairs = [[i, i+1] for i in range(len(current_ordering) - 1) if not {i, i+1} & fixed_positions.keys()]
 
+        def evaluate_swap(pair):
+            ordering = current_ordering.copy()
+            ordering[pair[0]], ordering[pair[1]] = ordering[pair[1]], ordering[pair[0]]
+            # update structure
+            self.update_structure(current_ordering)
+            score = self.BIC_all()
+
+            return score, ordering
+        
+        # search for the best ordering, until no improvement is found by swapping
+        with ProcessPoolExecutor() as executor:
+            while improvement:
+                improvement = False
+                results = executor.map(evaluate_swap, swap_pairs)
+                for score, ordering in results:
+                    if score > best_score:
+                        best_score = score
+                        current_ordering = ordering
+                        improvement = True
+
+        self.ordering = current_ordering
+        self.update_structure(self.ordering)
+        final_score = self.BIC_all()
+        print("Final Score : ", final_score)
+
+
+        """
         while True:
             best_swap_index = None
 
@@ -107,6 +137,8 @@ class ObjectNode(Variable):
                 score = self.BIC_all()
                 print("Final Score : ", score)
                 break  # No improving swap was found
+        """
+
 
     def BIC_all(self):
         score = 0
