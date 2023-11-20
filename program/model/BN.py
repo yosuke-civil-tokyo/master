@@ -29,15 +29,20 @@ class Variable:
 
     # this is for future use, after vectorization
     def probability(self, parent_data=None):
-        # use table concatenation of self.data in parent variables, is parent_data is None
-        if parent_data is None:
-            parent_data = np.stack([parent.get_data('output') for parent in self.parents], axis=-1)
-        # Create an index tuple to access the correct slice in the CPT NumPy array
-        prob = self.cpt[tuple(parent_data.tolist())]
-        if np.sum(prob) == 0:
-            return [1 / self.states] * self.states
+        data = self.get_data('input')
+        if parent_data:
+            # When there are parent variables
+            indices = np.stack([parent_data] + [data], 0)
+            probs = self.cpt[tuple(indices)]
+        elif self.parents:
+            # When there are parent variables
+            indices = np.stack([parent.get_data('output') for parent in self.parents] + [data], 0)
+            probs = self.cpt[tuple(indices)]
+        else:
+            # When there are no parent variables (independent variable)
+            probs = self.cpt[data]
         
-        return prob
+        return probs
     
     def estimate_cpt(self):
         if self.get_data('input') is None:
@@ -75,13 +80,16 @@ class Variable:
         cpt /= cpt.sum(axis=-1, keepdims=True)
         return cpt
         
-
     # to sample
-    def generate(self, parent_states):
+    def predict(self, parent_data=None):
         # probability array
-        prob = self.probability(parent_states)
+        prob = self.probability(parent_data)
         # sample from probability array
         return np.random.choice(self.states, p=prob)
+    
+    def generate(self, num_samples):
+        probs = self.probability()
+        self.data = np.array([np.random.choice(self.states, p=probs[i]) for i in range(num_samples)])
 
     # evaluation functions
     # log likelihood
@@ -105,13 +113,11 @@ class Variable:
         random_data = np.concatenate(
             [np.random.choice(parent.states, size=len(parent.get_data('output'))) for parent in self.parents],
              axis=-1).reshape((-1, len(self.parents)))
-        # modified_data = 
-
         modified_data = np.where((np.random.rand(len(original_data)) < change_rate).reshape((len(original_data), 1)), random_data, original_data)
 
         # prediction results from original data and modified data
-        original_prediction = np.array([self.generate(d) for d in original_data])
-        modified_prediction = np.array([self.generate(d) for d in modified_data])
+        original_prediction = np.array([self.predict(d) for d in original_data])
+        modified_prediction = np.array([self.predict(d) for d in modified_data])
 
         return np.mean(original_prediction != modified_prediction)
     

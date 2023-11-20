@@ -21,8 +21,8 @@ class ObjectNode(Variable):
         self.output_data = self.data
         self.input_states = self.states
         self.output_states = self.states
+        self.ordering = []
     
-
     def set_data(self, data_array, variable_name=None, data_type='input'):
         if data_type == 'input':
             self.input_data = np.array(data_array)
@@ -255,6 +255,13 @@ class ObjectNode(Variable):
         LL = self.calculate_log_likelihood(variable)
         likelihood_ratio = (LL0 - LL) / LL0
         print("Likelihood Ratio: ", likelihood_ratio)
+
+    # generate data
+    def generate(self, num_samples):
+        for var_name in self.ordering:
+            self.variables[var_name].generate(num_samples)
+
+        return None
 
     # Setting data to each variable
     def set_data_from_dataloader(self, dataloader, column_list):

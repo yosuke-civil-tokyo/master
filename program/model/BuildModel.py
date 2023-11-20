@@ -22,6 +22,8 @@ def BuildModelFromConfig(config):
     for var in variables:
         model.variables[var["name"]].generate_random_cpt()
 
+    model.ordering = [var["name"] for var in variables]
+
     return model
 
 def generate_random_cpt(variable):
