@@ -1,6 +1,8 @@
+import os
 import math
 from itertools import chain, combinations
 import numpy as np
+import pandas as pd
 import random
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -208,7 +210,7 @@ class ObjectNode(Variable):
         
         LL0 = self.calculate_LL0(self.variables[variable])
         
-        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(len(preceding_vars) + 1)):
+        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(min(len(preceding_vars) + 1, 5))):
             parent_names = list(subset)
             cpt = self.variables[variable].estimate_cpt_with_parents(parent_names, self.variables)
             score = self.temp_BIC_score(variable, {variable: parent_names}, cpt)
@@ -233,7 +235,7 @@ class ObjectNode(Variable):
         
         LL0 = self.calculate_LL0(variable)
         
-        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(len(preceding_vars) + 1)):
+        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(min(len(preceding_vars) + 1, 5))):
             candidate_parents = [self.variables[var] for var in subset]
             variable.set_parents(candidate_parents)
             variable.estimate_cpt()
@@ -321,6 +323,22 @@ class ObjectNode(Variable):
         plt.title("Bayesian Network Structure")
         plt.axis("off")
         plt.show()
+
+    # save data
+    def save_data(self, filename, file_type="csv"):
+        datatable = np.concatenate([self.variables[varname].tabledata() for varname in self.ordering], axis=1)
+        dataframe = pd.DataFrame(datatable, columns=self.ordering)
+        if file_type == "csv":
+            dataframe.to_csv(os.path.join("data", "madeData", filename+"."+file_type), index=False)
+
+    def tabledata(self):
+        return np.concatenate([self.variables[varname].tabledata() for varname in self.ordering], axis=1)
+    
+    def generate_random_cpt(self):
+        for var in self.variables.values():
+            var.generate_random_cpt()
+
+        
 
 
 if __name__=="__main__":

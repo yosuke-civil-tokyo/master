@@ -28,19 +28,24 @@ class Variable:
         return self.states
 
     # this is for future use, after vectorization
-    def probability(self, parent_data=None):
-        data = self.get_data('input')
+    def probability_array(self, parent_data=None, num_samples=None):
         if parent_data:
             # When there are parent variables
-            indices = np.stack([parent_data] + [data], 0)
-            probs = self.cpt[tuple(indices)]
+            probs_array = self.cpt[tuple(parent_data)]
         elif self.parents:
             # When there are parent variables
-            indices = np.stack([parent.get_data('output') for parent in self.parents] + [data], 0)
-            probs = self.cpt[tuple(indices)]
+            indices = np.stack([parent.get_data('output') for parent in self.parents], 0)
+            probs_array = self.cpt[tuple(indices)]
         else:
             # When there are no parent variables (independent variable)
-            probs = self.cpt[data]
+            probs_array = np.tile(self.cpt, (num_samples, 1))
+        
+        return probs_array
+    
+    def probability(self, parent_data=None, num_samples=None):
+        data = self.get_data('input')
+        probs_array = self.probability_array(parent_data=parent_data, num_samples=num_samples)
+        probs = probs_array[tuple(data)]
         
         return probs
     
@@ -83,12 +88,12 @@ class Variable:
     # to sample
     def predict(self, parent_data=None):
         # probability array
-        prob = self.probability(parent_data)
+        prob = self.probability(parent_data=parent_data)
         # sample from probability array
         return np.random.choice(self.states, p=prob)
     
     def generate(self, num_samples):
-        probs = self.probability()
+        probs = self.probability_array(num_samples=num_samples)
         self.data = np.array([np.random.choice(self.states, p=probs[i]) for i in range(num_samples)])
 
     # evaluation functions
@@ -120,6 +125,16 @@ class Variable:
         modified_prediction = np.array([self.predict(d) for d in modified_data])
 
         return np.mean(original_prediction != modified_prediction)
+    
+    def tabledata(self):
+        return self.data.reshape((-1, 1))
+    
+    def set_random_cpt(self):
+        num_states = [parent.get_states('output') for parent in self.parents] + [self.get_states('input')]
+        cpt = np.random.rand(*num_states)
+        cpt /= cpt.sum(axis=-1, keepdims=True)
+        self.cpt = cpt
+        return cpt
     
 
 
