@@ -1,5 +1,6 @@
 import os
 import math
+import json
 from itertools import chain, combinations
 import numpy as np
 import pandas as pd
@@ -264,6 +265,10 @@ class ObjectNode(Variable):
             self.variables[var_name].generate(num_samples)
 
         return None
+    
+    def generate_random_cpt(self):
+        for var in self.variables.values():
+            var.generate_random_cpt()
 
     # Setting data to each variable
     def set_data_from_dataloader(self, dataloader, column_list):
@@ -286,12 +291,12 @@ class ObjectNode(Variable):
         print("Log Likelihood: ", ll)
 
         # check elasticity
-        try:
+        """try:
             elasticity = target_variable.elasticity(change_rate)
         except:
             print("Error: Could not calculate elasticity.")
             print("This is mainly because the variable has no parents.")
-        print("Elasticity: ", elasticity)
+        print("Elasticity: ", elasticity)"""
 
     # Display the optimized structure
     def visualize_structure(self):
@@ -324,19 +329,42 @@ class ObjectNode(Variable):
         plt.axis("off")
         plt.show()
 
-    # save data
+    # saving functions
     def save_data(self, filename, file_type="csv"):
         datatable = np.concatenate([self.variables[varname].tabledata() for varname in self.ordering], axis=1)
         dataframe = pd.DataFrame(datatable, columns=self.ordering)
         if file_type == "csv":
-            dataframe.to_csv(os.path.join("data", "madeData", filename+"."+file_type), index=False)
+            dataframe.to_csv(os.path.join("data", "midData", filename+"."+file_type), index=False)
 
     def tabledata(self):
         return np.concatenate([self.variables[varname].tabledata() for varname in self.ordering], axis=1)
     
-    def generate_random_cpt(self):
-        for var in self.variables.values():
-            var.generate_random_cpt()
+    def save_model_parameters(self, filename):
+        model_params = self._extract_model_params()
+        with open(os.path.join("data", "modelData", filename+".json"), 'w') as file:
+            json.dump(model_params, file, indent=4)
+
+    def _extract_model_params(self, model_params=None):
+        if model_params is None:
+            model_params = {"variables": {}, "objects": {}}
+        model_params["objects"][self.name] = {}
+        model_params["objects"][self.name]["variables"] = []
+        model_params["objects"][self.name]["in_obj"] = []
+        for var_name, variable in self.variables.items():
+            if isinstance(variable, ObjectNode):
+                # If the variable is an ObjectNode, recursively extract its parameters
+                model_params = variable._extract_model_params(model_params=model_params)
+                model_params["objects"][self.name]["in_obj"].append(var_name)
+            else:
+                # Otherwise, extract the variable's parameters as usual
+                model_params["variables"][var_name] = {
+                    "num_states": variable.states,
+                    "parents": [parent.name for parent in variable.parents],
+                    "cpt": variable.cpt.tolist() if variable.cpt is not None else None
+                }
+                model_params["objects"][self.name]["variables"].append(var_name)
+        return model_params
+    
 
         
 
