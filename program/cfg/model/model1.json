@@ -1,0 +1,26 @@
+{
+    "variables": {
+        "A": {
+            "num_states": 4,
+            "parents": []
+        },
+        "B": {
+            "num_states": 2,
+            "parents": ["A"]
+        },
+        "C": {
+            "num_states": 3,
+            "parents": ["A"]
+        },
+        "D": {
+            "num_states": 2,
+            "parents": ["B", "C"]
+        }
+    },
+    "objects": {
+        "obj1": {
+            "variables": ["A", "B", "C", "D"],
+            "in_obj": []
+        }
+    }
+}

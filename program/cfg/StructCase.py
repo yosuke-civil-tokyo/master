@@ -81,5 +81,23 @@ Configs = {
         ],
         "numrows": 10000,
         "evaluate_target": "Mode",
+    },
+    "model1": {
+        "case_name": "model1",
+        "objects": [
+            {"name": "obj1",
+              "variables": ["A", "B"],
+              "fix": {},
+              "objs": ["obj2"],
+            },
+            {"name": "obj2",
+             "variables": ["C", "D"],
+             "fix": {},
+             "input": ["C"],
+             "output": ["D"],
+            }
+        ],
+        "numrows": 10000,
+        "evaluate_target": "D",
     }
 }
