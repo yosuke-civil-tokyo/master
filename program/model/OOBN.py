@@ -274,8 +274,11 @@ class ObjectNode(Variable):
         print("Likelihood Ratio: ", likelihood_ratio)
 
     # generate data
-    def generate(self, num_samples):
-        for var_name in self.ordering:
+    def generate(self, num_samples, start_node=None):
+        update_ordering = self.ordering.copy()
+        if start_node:
+            update_ordering = update_ordering[update_ordering.index(start_node)+1:]
+        for var_name in update_ordering:
             self.variables[var_name].generate(num_samples)
 
         return None
@@ -308,7 +311,7 @@ class ObjectNode(Variable):
             print("Log Likelihood: ", ll)
             return ll
         elif type == "elasticity":
-            return calculate_elasticity(target_variable, control_variable, changeRate)
+            return self.calculate_elasticity(target_variable, control_variable, changeRate)
 
         # check elasticity
         """try:
@@ -385,6 +388,32 @@ class ObjectNode(Variable):
                 model_params["objects"][self.name]["variables"].append(var_name)
         return model_params
     
+
+    def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=100000):
+        # generate data with original condition
+        self.generate(num_samples=num_samples, start_node=control_variable.name)
+        prob_table_ori = self.aggregate_distribution_table(target_variable)
+
+        # modify control variable's data
+        control_variable.modify_data(change_rate)
+
+        # generate data with modified condition
+        self.generate(num_samples=num_samples, start_node=control_variable.name)
+        prob_table_mod = self.aggregate_distribution_table(target_variable)
+
+        # calculate elasticity
+        elasticity = np.mean(np.abs(prob_table_ori - prob_table_mod) / prob_table_ori)
+
+        return elasticity
+    
+    def aggregate_distribution_table(self, target_variable):
+        # get the distribution table of the target variable
+        target_data = target_variable.get_data('output')
+        target_states = target_variable.get_states('output')
+        target_dist = np.array([np.sum(target_data == i) for i in range(target_states)]) / len(target_data)
+
+        return target_dist
+
 
         
 

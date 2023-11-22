@@ -136,6 +136,13 @@ class Variable:
         self.cpt = cpt
         return cpt
     
+    def modify_data(self, change_rate):
+        original_data = self.get_data('input')
+        random_data = np.random.choice(self.states, size=len(original_data))
+        modified_data = np.where(np.random.rand(len(original_data)) < change_rate, random_data, original_data)
+        self.set_data(modified_data)
+        
+    
 
 
 
