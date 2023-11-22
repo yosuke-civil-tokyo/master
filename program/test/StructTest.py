@@ -11,7 +11,7 @@ from model.OOBN import ObjectNode
 from model.BN import Variable
 
 # example test case
-def exTest(config):
+def exTest(config, flag=0):
     case_name = config.get("case_name")
     data_files = config.get("data_files")
     convert_dict = config.get("convert_dict")
@@ -53,45 +53,47 @@ def exTest(config):
             for child_name in obj_conf["objs"]:
                 objects[obj_conf['name']].add_variable(objects[child_name])
 
-    # Perform structure optimization based on fixed positions
-    for obj_conf in object_configs:
-        fixed_positions = {k: v for k, v in obj_conf["fix"].items()}
-        print(f"Structure optimization for {obj_conf['name']}...")
-        objects[obj_conf['name']].structure_optimization(fixed_positions)
+    # Perform structure optimization
+    for flag in range(int(config.get("flags", 1))):
+        for obj_conf in object_configs:
+            fixed_positions = {k: v for k, v in obj_conf["fix"].items()}
+            print(f"Structure optimization for {obj_conf['name']}...")
+            objects[obj_conf['name']].structure_optimization(fixed_positions)
 
-    # evaluate performance with test data
-    # reset data with test
-    dl.pt_data = dl.test_data
-    for obj_conf in object_configs:
-        print(f"Making {obj_conf['name']}...")
-        obj_columns = [var for var in obj_conf["variables"]]  # Handle renamed columns
-        objects[obj_conf['name']].set_data_from_dataloader(dl, obj_columns)
+        # evaluate performance with test data
+        # reset data with test
+        if config.get("evaluate", False):
+            dl.pt_data = dl.test_data
+            for obj_conf in object_configs:
+                print(f"Making {obj_conf['name']}...")
+                obj_columns = [var for var in obj_conf["variables"]]  # Handle renamed columns
+                objects[obj_conf['name']].set_data_from_dataloader(dl, obj_columns)
 
-        # If the object has defined input/output variables, set them
-        if "input" in obj_conf and "output" in obj_conf:
-            for input_var in obj_conf["input"]:
-                objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[input_var].get_data(), input_var, 'input')
-            for output_var in obj_conf["output"]:
-                objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[output_var].get_data(), output_var, 'output')
-            
-    # evaluate performance with log likelihood
-    print("Evaluating performance...")
-    for obj in objects.values():
-        if evaluate_target in obj.variables:
-            obj.evaluate(evaluate_target)
+                # If the object has defined input/output variables, set them
+                if "input" in obj_conf and "output" in obj_conf:
+                    for input_var in obj_conf["input"]:
+                        objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[input_var].get_data(), input_var, 'input')
+                    for output_var in obj_conf["output"]:
+                        objects[obj_conf['name']].set_data(objects[obj_conf['name']].variables[output_var].get_data(), output_var, 'output')
 
-    # Visualize the structures
-    """
-    for obj_conf in object_configs:
-        print(f"Visualizing structure for {obj_conf['name']}...")
-        try:
-            objects[obj_conf['name']].visualize_structure()
-        except:
-            print("Error: Could not visualize structure of Object \"{}\"".format(obj_conf['name']))
-    """
+            # evaluate performance with log likelihood
+            print("Evaluating performance...")
+            for obj in objects.values():
+                if evaluate_target in obj.variables:
+                    obj.evaluate(evaluate_target)
 
-    # save the model
-    objects.get("obj1").save_model_parameters(case_name+"_pred1")
+        # Visualize the structures
+        if config.get("visualize", False):
+            for obj_conf in object_configs:
+                print(f"Visualizing structure for {obj_conf['name']}...")
+                try:
+                    objects[obj_conf['name']].visualize_structure()
+                except:
+                    print("Error: Could not visualize structure of Object \"{}\"".format(obj_conf['name']))
+
+
+        # save the model
+        objects.get("obj1").save_model_parameters(case_name+"/pred"+str(flag))
 
 
 

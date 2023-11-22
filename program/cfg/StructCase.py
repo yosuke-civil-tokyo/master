@@ -99,5 +99,6 @@ Configs = {
         ],
         "numrows": 10000,
         "evaluate_target": "D",
+        "flags": 10,
     }
 }

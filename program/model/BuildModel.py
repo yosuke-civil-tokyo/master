@@ -54,4 +54,4 @@ if __name__ == "__main__":
     model = BuildModelFromConfig(config)
     model.generate(args.NumSamples)
     model.save_data(args.OutputFile, "csv")
-    model.save_model_parameters(args.OutputFile)
+    model.save_model_parameters(args.OutputFile+"/truth")

@@ -281,14 +281,16 @@ class ObjectNode(Variable):
                 self.add_variable(variable)
 
     # Evaluate performance
-    def evaluate(self, target_variable_name, change_rate=0.01):
+    def evaluate(self, target_variable_name, controlVar=None, change_rate=0.01, type="log_likelihood"):
         print("Evaluating performance...")
         print("Target Variable: ", target_variable_name)
         target_variable = self.variables[target_variable_name]
 
-        # check log-likelihood
-        ll = target_variable.log_likelihood()
-        print("Log Likelihood: ", ll)
+        if type == "log_likelihood":
+            # check log-likelihood
+            ll = target_variable.log_likelihood()
+            print("Log Likelihood: ", ll)
+            return ll
 
         # check elasticity
         """try:
