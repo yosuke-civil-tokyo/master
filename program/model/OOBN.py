@@ -38,6 +38,20 @@ class ObjectNode(Variable):
     def get_variables(self, data_type='input'):
         if data_type == 'input':
             return {var_name: self.variables[var_name] for var_name in self.input}
+        
+    def find_variable(self, var_name):
+        # Check if the variable is directly in this object
+        if var_name in self.variables:
+            return self.variables[var_name]
+
+        # If not, search in child objects
+        for child in self.variables.values():
+            if isinstance(child, ObjectNode):
+                result = child.find_variable(var_name)
+                if result is not None:
+                    return result
+
+        return None
 
     def get_data(self, data_type='input'):
         if data_type == 'input':
@@ -281,16 +295,20 @@ class ObjectNode(Variable):
                 self.add_variable(variable)
 
     # Evaluate performance
-    def evaluate(self, target_variable_name, controlVar=None, change_rate=0.01, type="log_likelihood"):
+    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood"):
         print("Evaluating performance...")
-        print("Target Variable: ", target_variable_name)
-        target_variable = self.variables[target_variable_name]
+        print("Target Variable: ", targetVar)
+
+        target_variable = self.find_variable(targetVar)
+        control_variable = self.find_variable(controlVar) if controlVar else None
 
         if type == "log_likelihood":
             # check log-likelihood
             ll = target_variable.log_likelihood()
             print("Log Likelihood: ", ll)
             return ll
+        elif type == "elasticity":
+            return calculate_elasticity(target_variable, control_variable, changeRate)
 
         # check elasticity
         """try:
