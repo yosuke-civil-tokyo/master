@@ -224,16 +224,21 @@ class ObjectNode(Variable):
         best_score = float('-inf')
         
         LL0 = self.calculate_LL0(self.variables[variable])
-        
-        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(min(len(preceding_vars) + 1, 5))):
-            parent_names = list(subset)
-            cpt = self.variables[variable].estimate_cpt_with_parents(parent_names, self.variables)
-            score = self.temp_BIC_score(variable, {variable: parent_names}, cpt)
-            if score > best_score:
-                print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
-                best_score = score
-                best_parents = parent_names
-                best_cpt = cpt
+
+        for r in range(len(preceding_vars) + 1):
+            improved_in_r = False
+            for subset in combinations(preceding_vars, r):
+                parent_names = list(subset)
+                cpt = self.variables[variable].estimate_cpt_with_parents(parent_names, self.variables)
+                score = self.temp_BIC_score(variable, {variable: parent_names}, cpt)
+                if score > best_score:
+                    print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
+                    improved_in_r = True
+                    best_score = score
+                    best_parents = parent_names
+                    best_cpt = cpt
+            if not improved_in_r:
+                break
             
         """
         # check likelihood ratio
