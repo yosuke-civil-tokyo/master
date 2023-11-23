@@ -1,25 +1,73 @@
 {
     "variables": {
-        "A": {
-            "num_states": 4,
+        "access": {
+            "num_states": 3,
             "parents": []
         },
-        "B": {
+        "license": {
             "num_states": 2,
-            "parents": ["A"]
+            "parents": []
         },
-        "C": {
+        "ageGroup": {
             "num_states": 3,
-            "parents": ["A"]
+            "parents": []
         },
-        "D": {
+        "employed": {
             "num_states": 2,
-            "parents": ["B", "C"]
+            "parents": []
+        },
+        "trip1": {
+            "num_states": 5,
+            "parents": ["access", "license", "ageGroup", "employed"]
+        },
+        "trip2": {
+            "num_states": 5,
+            "parents": ["trip1"]
+        },
+        "act2": {
+            "num_states": 5,
+            "parents": ["trip1", "employed"]
+        },
+        "act3": {
+            "num_states": 5,
+            "parents": ["trip2", "employed"]
+        },
+        "trip3": {
+            "num_states": 5,
+            "parents": ["trip2", "act3"]
+        },
+        "act4": {
+            "num_states": 5,
+            "parents": ["trip3"]
+        },
+        "trip4": {
+            "num_states": 5,
+            "parents": ["trip3"]
+        },
+        "act5": {
+            "num_states": 5,
+            "parents": ["trip4"]
+        },
+        "trip5": {
+            "num_states": 5,
+            "parents": ["trip4"]
+        },
+        "act6": {
+            "num_states": 5,
+            "parents": ["trip5"]
+        },
+        "trip6": {
+            "num_states": 5,
+            "parents": ["trip5"]
+        },
+        "act7": {
+            "num_states": 5,
+            "parents": ["trip6"]
         }
     },
     "objects": {
         "obj1": {
-            "variables": ["A", "B", "C", "D"],
+            "variables": ["access", "license", "ageGroup", "employed", "trip1", "trip2", "act2", "act3", "trip3", "act4", "trip4", "act5", "trip5", "act6", "trip6", "act7"],
             "in_obj": []
         }
     }
