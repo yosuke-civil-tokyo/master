@@ -81,5 +81,18 @@ Configs = {
         ],
         "numrows": 10000,
         "evaluate_target": "Mode",
+    },
+    "model1": {
+        "case_name": "model1",
+        "objects": [
+            {"name": "obj1",
+              "variables": ["access", "license", "ageGroup", "employed", "trip1", "trip2", "act2", "act3", "trip3", "act4", "trip4", "act5", "trip5", "act6", "trip6", "act7"],
+              "fix": {},
+              "objs": [],
+            }
+        ],
+        "numrows": 10000,
+        "evaluate_target": "trip1",
+        "flags": 30,
     }
 }
