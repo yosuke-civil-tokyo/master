@@ -13,8 +13,11 @@ def BuildModelFromConfig(config):
     # Create and add Variables to their respective ObjectNodes
     for var_name, var_info in config["variables"].items():
         new_var = Variable(var_name, var_info["num_states"])
-
+        variables[var_name] = new_var
+    
+    for var_name, var_info in config["variables"].items():
         # Assign parents to the variable
+        new_var = variables[var_name]
         if var_info.get("parents"):
             new_var.set_parents([variables[parent_name] for parent_name in var_info["parents"]])
 
@@ -23,7 +26,6 @@ def BuildModelFromConfig(config):
             new_var.set_cpt(var_info["cpt"])
         else:
             new_var.set_random_cpt()
-        variables[var_name] = new_var
 
     # Create and add ObjectNodes to the model
     objects = {}

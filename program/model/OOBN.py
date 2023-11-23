@@ -5,6 +5,7 @@ from itertools import chain, combinations
 import numpy as np
 import pandas as pd
 import random
+import time
 import networkx as nx
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
@@ -25,6 +26,7 @@ class ObjectNode(Variable):
         self.input_states = self.states
         self.output_states = self.states
         self.ordering = []
+        self.calc_time = 0
     
     def set_data(self, data_array, variable_name=None, data_type='input'):
         if data_type == 'input':
@@ -74,6 +76,7 @@ class ObjectNode(Variable):
         variable.object_node = self
 
     def structure_optimization(self, fixed_positions=None):
+        startTime = time.time()
         # check if any variable has to be fixed
         if fixed_positions is None:
             fixed_positions = {}
@@ -105,6 +108,7 @@ class ObjectNode(Variable):
         self.update_structure(self.ordering)
         final_score = self.BIC_all()
         print("Final Score : ", final_score)
+        self.calc_time = time.time() - startTime
 
     def evaluate_swap(self, pair, ordering):
         ordering = ordering.copy()
@@ -218,7 +222,7 @@ class ObjectNode(Variable):
                 self.set_optimal_parents(variable, preceding_vars)
 
     def find_optimal_parents(self, variable, preceding_vars):
-        print("Finding optimal parents for variable: ", variable)
+        # print("Finding optimal parents for variable: ", variable)
         best_parents = []
         best_cpt = None
         best_score = float('-inf')
@@ -232,7 +236,7 @@ class ObjectNode(Variable):
                 cpt = self.variables[variable].estimate_cpt_with_parents(parent_names, self.variables)
                 score = self.temp_BIC_score(variable, {variable: parent_names}, cpt)
                 if score > best_score:
-                    print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
+                    # print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
                     improved_in_r = True
                     best_score = score
                     best_parents = parent_names
@@ -249,7 +253,7 @@ class ObjectNode(Variable):
         return best_parents, best_cpt
     
     def set_optimal_parents(self, variable, preceding_vars):
-        print("Finding optimal parents for variable: ", variable.name)
+        # print("Finding optimal parents for variable: ", variable.name)
         best_parents = []
         best_score = float('-inf')
         
@@ -266,7 +270,7 @@ class ObjectNode(Variable):
             # print("Score: ", score)
             
             if score > best_score:
-                print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
+                # print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
                 best_score = score
                 best_parents = candidate_parents
         
@@ -276,7 +280,7 @@ class ObjectNode(Variable):
         # check likelihood ratio
         LL = self.calculate_log_likelihood(variable)
         likelihood_ratio = (LL0 - LL) / LL0
-        print("Likelihood Ratio: ", likelihood_ratio)
+        # print("Likelihood Ratio: ", likelihood_ratio)
 
     # generate data
     def generate(self, num_samples, start_node=None):
@@ -304,8 +308,6 @@ class ObjectNode(Variable):
 
     # Evaluate performance
     def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood"):
-        print("Evaluating performance...")
-        print("Target Variable: ", targetVar)
 
         target_variable = self.find_variable(targetVar)
         control_variable = self.find_variable(controlVar) if controlVar else None
@@ -313,7 +315,7 @@ class ObjectNode(Variable):
         if type == "log_likelihood":
             # check log-likelihood
             ll = target_variable.log_likelihood()
-            print("Log Likelihood: ", ll)
+            # print("Log Likelihood: ", ll)
             return ll
         elif type == "elasticity":
             return self.calculate_elasticity(target_variable, control_variable, changeRate)
@@ -375,10 +377,12 @@ class ObjectNode(Variable):
     def _extract_model_params(self, model_params=None):
         if model_params is None:
             model_params = {"variables": {}, "objects": {}}
+        model_params["timeTaken"] = self.calc_time
         model_params["objects"][self.name] = {}
         model_params["objects"][self.name]["variables"] = []
         model_params["objects"][self.name]["in_obj"] = []
-        for var_name, variable in self.variables.items():
+        for var_name in self.ordering:
+            variable = self.variables[var_name]
             if isinstance(variable, ObjectNode):
                 # If the variable is an ObjectNode, recursively extract its parameters
                 model_params = variable._extract_model_params(model_params=model_params)
@@ -394,7 +398,7 @@ class ObjectNode(Variable):
         return model_params
     
 
-    def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=100000):
+    def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000):
         # generate data with original condition
         self.generate(num_samples=num_samples, start_node=control_variable.name)
         prob_table_ori = self.aggregate_distribution_table(target_variable)
