@@ -107,5 +107,37 @@ Configs = {
             }
         ],
         "numrows": 10000,
+    },
+    "easy1": {
+        "case_name": "easy1",
+        "data_files": [
+            'data/activityData/MS2611_utf8.csv',
+        ],
+        "convert_dict": {
+            "移動の目的": {
+                1: 1, 2: 1, 3: 2, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 3, 19: 4
+            },
+            "目的種類：分類１": {
+                2: 1, 3: 1, 4: 1, 5: 2, 6: 2, 7: 1, 8: 1, 9: 1, 10: 2, 11: 2, 13: 3, 14: 2, 15: 1, 16: 1, 17: 2, 18: 2
+            },
+        },
+        "convert_dict_continuous": {
+            "年齢": 3,
+            "同行人数：人数": 3,
+        },
+        "change_name_dict": {
+            "移動の目的": "Purpose",
+            "目的種類：分類１": "PurposeType",
+            "年齢": "Age",
+            "同行人数：人数": "Companion",
+        },
+        "objects": [
+            {"name": "obj1",
+              "variables": ["Age", "Companion", "Purpose", "PurposeType"],
+              "fix": {},
+              "objs": []
+            },
+        ],
+        "numrows": 10000,
     }
 }
