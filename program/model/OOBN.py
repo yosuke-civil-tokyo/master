@@ -282,6 +282,128 @@ class ObjectNode(Variable):
         likelihood_ratio = (LL0 - LL) / LL0
         # print("Likelihood Ratio: ", likelihood_ratio)
 
+    # another structure learning method, most simple greedy
+    def greedy_structure_learning(self):
+        improvement = True
+        while improvement:
+            improvement = False
+            best_gain = 0
+            best_operation = None
+
+            # Evaluate all possible legal arc operations
+            for operation in self.get_legal_arc_operations():
+                gain = self.calculate_bic_gain(operation)
+                if gain > best_gain:
+                    best_gain = gain
+                    best_operation = operation
+
+            # Perform the best operation, if any
+            if best_gain > 0:
+                self.perform_arc_operation(best_operation)
+                improvement = True
+
+    def get_legal_arc_operations(self):
+        # get all possible arc operations (add, remove, reverse)
+        # operations are like (A, B, "add"), (A, B, "remove"), (A, B, "reverse")
+        operations = []
+        for var_name in self.variables.keys():
+            for parent_name in self.variables.keys():
+                if var_name != parent_name:
+                    if self.check_legal_arc_operation(var_name, parent_name, "add"):
+                        operations.append((var_name, parent_name, "add"))
+                    if self.check_legal_arc_operation(var_name, parent_name, "remove"):
+                        operations.append((var_name, parent_name, "remove"))
+                    if self.check_legal_arc_operation(var_name, parent_name, "reverse"):
+                        operations.append((var_name, parent_name, "reverse"))
+            
+        return operations
+    
+    def check_legal_arc_operation(self, var_name, parent_name, operation):
+        # check if the arc operation is legal
+        # operation is like "add", "remove", "reverse"
+        if operation == "add":
+            if var_name in self.variables[parent_name].parents:
+                return False
+            else:
+                return not self.reachable(var_name, parent_name)
+        elif operation == "remove":
+            if var_name in self.variables[parent_name].parents:
+                return True
+            else:
+                return False
+        elif operation == "reverse":
+            if var_name in self.variables[parent_name].parents:
+                return not self.reachable(parent_name, var_name, allowDirect=False)
+            else:
+                return False
+        else:
+            raise ValueError("Invalid operation. Choose 'add', 'remove', or 'reverse'.")
+    
+    # check if start_node is reachable from end_node by going up to the parents
+    def reachable(self, start_node, end_node, allowDirect=True):
+        if len(self.variables[end_node].parents) == 0:
+            return False
+        
+        reachable = []
+        for parent in self.variables[end_node].parents:
+            if parent.name == start_node:
+                if not allowDirect:
+                    return reachable.append(False)
+                return True
+            else:
+                reachable.append(self.reachable(start_node, parent.name, allowDirect=True))
+
+        return any(reachable)
+    
+    # calculate the BIC gain
+    def calculate_bic_gain(self, operation):
+        if operation[2] == "add":
+            score = -1 * self.BIC_sep(self.variables[operation[0]])
+            self.variables[operation[0]].parents.append(self.variables[operation[1]])
+            self.variables[operation[0]].estimate_cpt()
+            score += self.BIC_sep(self.variables[operation[0]])
+            self.variables[operation[0]].parents.remove(self.variables[operation[1]])
+            self.variables[operation[0]].estimate_cpt()
+            return score
+        elif operation[2] == "remove":
+            score = -1 * self.BIC_sep(self.variables[operation[0]])
+            self.variables[operation[0]].parents.remove(self.variables[operation[1]])
+            self.variables[operation[0]].estimate_cpt()
+            score += self.BIC_sep(self.variables[operation[0]])
+            self.variables[operation[0]].parents.append(self.variables[operation[1]])
+            self.variables[operation[0]].estimate_cpt()
+            return score
+        elif operation[2] == "reverse":
+            score = -1 * (self.BIC_sep(self.variables[operation[0]]) + self.BIC_sep(self.variables[operation[1]]))
+            self.variables[operation[0]].parents.remove(self.variables[operation[1]])
+            self.variables[operation[1]].parents.append(self.variables[operation[0]])
+            self.variables[operation[0]].estimate_cpt()
+            self.variables[operation[1]].estimate_cpt()
+            score += self.BIC_sep(self.variables[operation[0]]) + self.BIC_sep(self.variables[operation[1]])
+            self.variables[operation[0]].parents.append(self.variables[operation[1]])
+            self.variables[operation[1]].parents.remove(self.variables[operation[0]])
+            self.variables[operation[0]].estimate_cpt()
+            self.variables[operation[1]].estimate_cpt()
+            return score
+        else:
+            raise ValueError("Invalid operation. Choose 'add', 'remove', or 'reverse'.")
+
+    # perform the arc operation
+    def perform_arc_operation(self, operation):
+        if operation[2] == "add":
+            self.variables[operation[0]].parents.append(self.variables[operation[1]])
+            self.variables[operation[0]].estimate_cpt()
+        elif operation[2] == "remove":
+            self.variables[operation[0]].parents.remove(self.variables[operation[1]])
+            self.variables[operation[0]].estimate_cpt()
+        elif operation[2] == "reverse":
+            self.variables[operation[0]].parents.remove(self.variables[operation[1]])
+            self.variables[operation[1]].parents.append(self.variables[operation[0]])
+            self.variables[operation[0]].estimate_cpt()
+            self.variables[operation[1]].estimate_cpt()
+        else:
+            raise ValueError("Invalid operation. Choose 'add', 'remove', or 'reverse'.")
+
     # generate data
     def generate(self, num_samples, start_node=None):
         update_ordering = self.ordering.copy()
@@ -422,9 +544,6 @@ class ObjectNode(Variable):
         target_dist = np.array([np.sum(target_data == i) for i in range(target_states)]) / len(target_data)
 
         return target_dist
-
-
-        
 
 
 if __name__=="__main__":
