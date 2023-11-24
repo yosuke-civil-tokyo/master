@@ -284,6 +284,7 @@ class ObjectNode(Variable):
 
     # another structure learning method, most simple greedy
     def greedy_structure_learning(self):
+        self.randomize_parent_sets()
         improvement = True
         while improvement:
             improvement = False
@@ -299,6 +300,7 @@ class ObjectNode(Variable):
 
             # Perform the best operation, if any
             if best_gain > 0:
+                # print("Best Operation: ", best_operation)
                 self.perform_arc_operation(best_operation)
                 improvement = True
 
@@ -403,6 +405,24 @@ class ObjectNode(Variable):
             self.variables[operation[1]].estimate_cpt()
         else:
             raise ValueError("Invalid operation. Choose 'add', 'remove', or 'reverse'.")
+        
+    def randomize_parent_sets(self):
+        variable_names = list(self.variables.keys())
+        searched_variables = []
+        for var_name in variable_names:
+            variable = self.variables[var_name]
+
+            # Randomly decide the number of parents (you can set limits as needed)
+            num_parents = random.randint(0, len(searched_variables))
+
+            # Randomly select parent variables
+            potential_parents = [name for name in searched_variables]
+            selected_parents = random.sample(potential_parents, num_parents)
+
+            # Assign these parents to the variable
+            if len(selected_parents) > 0:
+                variable.set_parents([self.variables[parent_name] for parent_name in selected_parents])
+            variable.estimate_cpt()
 
     # generate data
     def generate(self, num_samples, start_node=None):
