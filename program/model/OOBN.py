@@ -304,6 +304,53 @@ class ObjectNode(Variable):
                 self.perform_arc_operation(best_operation)
                 improvement = True
 
+    def tabu_structure_learning(self, tabu_length=10, max_iterations=100):
+        self.randomize_parent_sets()
+        improvement = True
+        iteration = 0
+        tabu_list = []
+
+        while improvement and iteration < max_iterations:
+            improvement = False
+            best_gain = 0
+            best_operation = None
+
+            # Evaluate all possible legal arc operations not in the Tabu list
+            for operation in self.get_legal_arc_operations():
+                if operation not in tabu_list:
+                    gain = self.calculate_bic_gain(operation)
+                    if gain > best_gain:
+                        best_gain = gain
+                        best_operation = operation
+
+            # Perform the best operation, if any
+            if best_gain > 0:
+                self.perform_arc_operation(best_operation)
+                improvement = True
+
+                # Add the reverse of the operation to the Tabu list
+                reverse_operation = self.get_reverse_operation(best_operation)
+                tabu_list.append(reverse_operation)
+
+                # Keep the Tabu list within the specified length
+                if len(tabu_list) > tabu_length:
+                    tabu_list.pop(0)
+
+            iteration += 1
+
+    # functions used in structure learning
+    def get_reverse_operation(self, operation):
+        # Return the reverse of the given operation
+        var_name, parent_name, op_type = operation
+        if op_type == "add":
+            return (var_name, parent_name, "remove")
+        elif op_type == "remove":
+            return (var_name, parent_name, "add")
+        elif op_type == "reverse":
+            return (parent_name, var_name, "reverse")  # Reverse the direction
+        else:
+            raise ValueError("Invalid operation type.")
+
     def get_legal_arc_operations(self):
         # get all possible arc operations (add, remove, reverse)
         # operations are like (A, B, "add"), (A, B, "remove"), (A, B, "reverse")
