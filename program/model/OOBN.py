@@ -304,7 +304,7 @@ class ObjectNode(Variable):
                 self.perform_arc_operation(best_operation)
                 improvement = True
 
-    def tabu_structure_learning(self, tabu_length=10, max_iterations=100):
+    def tabu_structure_learning(self, tabu_length=10, max_iterations=10000):
         self.randomize_parent_sets()
         improvement = True
         iteration = 0
