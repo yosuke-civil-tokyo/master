@@ -94,5 +94,6 @@ Configs = {
         "numrows": 10000,
         "evaluate_target": "trip1",
         "flags": 30,
+        "duration": 100,
     }
 }

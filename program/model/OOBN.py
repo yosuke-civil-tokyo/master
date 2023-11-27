@@ -229,7 +229,7 @@ class ObjectNode(Variable):
         
         LL0 = self.calculate_LL0(self.variables[variable])
 
-        for r in range(len(preceding_vars) + 1):
+        for r in range(min(len(preceding_vars) + 1, 3)):
             improved_in_r = False
             for subset in combinations(preceding_vars, r):
                 parent_names = list(subset)
@@ -259,20 +259,25 @@ class ObjectNode(Variable):
         
         LL0 = self.calculate_LL0(variable)
         
-        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(min(len(preceding_vars) + 1, 5))):
-            candidate_parents = [self.variables[var] for var in subset]
-            variable.set_parents(candidate_parents)
-            variable.estimate_cpt()
-            
-            score = self.BIC_sep(variable)
+        for r in range(min(len(preceding_vars) + 1, 3)):
+            improved_in_r = False
+            for subset in combinations(preceding_vars, r):
+                candidate_parents = [self.variables[var] for var in subset]
+                variable.set_parents(candidate_parents)
+                variable.estimate_cpt()
 
-            # print("Candidate Parents: ", [self.variables[var].name for var in subset])
-            # print("Score: ", score)
-            
-            if score > best_score:
-                # print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
-                best_score = score
-                best_parents = candidate_parents
+                score = self.BIC_sep(variable)
+
+                # print("Candidate Parents: ", [self.variables[var].name for var in subset])
+                # print("Score: ", score)
+
+                if score > best_score:
+                    improved_in_r = True
+                    # print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
+                    best_score = score
+                    best_parents = candidate_parents
+            if not improved_in_r:
+                break
         
         variable.set_parents(best_parents)
         variable.estimate_cpt()
@@ -283,10 +288,12 @@ class ObjectNode(Variable):
         # print("Likelihood Ratio: ", likelihood_ratio)
 
     # another structure learning method, most simple greedy
-    def greedy_structure_learning(self):
+    def greedy_structure_learning(self, max_iterations=10000):
+        start_time = time.time()
         self.randomize_parent_sets()
         improvement = True
-        while improvement:
+        iteration = 0
+        while improvement and iteration < max_iterations:
             improvement = False
             best_gain = 0
             best_operation = None
@@ -303,8 +310,12 @@ class ObjectNode(Variable):
                 # print("Best Operation: ", best_operation)
                 self.perform_arc_operation(best_operation)
                 improvement = True
+            iteration += 1
+        print(iteration)
+        self.calc_time = time.time() - start_time
 
     def tabu_structure_learning(self, tabu_length=10, max_iterations=10000):
+        start_time = time.time()
         self.randomize_parent_sets()
         improvement = True
         iteration = 0
@@ -337,6 +348,8 @@ class ObjectNode(Variable):
                     tabu_list.pop(0)
 
             iteration += 1
+        print(iteration)
+        self.calc_time = time.time() - start_time
 
     # functions used in structure learning
     def get_reverse_operation(self, operation):
@@ -455,12 +468,15 @@ class ObjectNode(Variable):
         
     def randomize_parent_sets(self):
         variable_names = list(self.variables.keys())
+        random.shuffle(variable_names)
         searched_variables = []
+        for var_name in variable_names:
+            self.variables[var_name].parents = []
         for var_name in variable_names:
             variable = self.variables[var_name]
 
             # Randomly decide the number of parents (you can set limits as needed)
-            num_parents = random.randint(0, len(searched_variables))
+            num_parents = random.randint(0, min(len(searched_variables), 5))
 
             # Randomly select parent variables
             potential_parents = [name for name in searched_variables]
@@ -470,6 +486,7 @@ class ObjectNode(Variable):
             if len(selected_parents) > 0:
                 variable.set_parents([self.variables[parent_name] for parent_name in selected_parents])
             variable.estimate_cpt()
+            searched_variables.append(var_name)
 
     # generate data
     def generate(self, num_samples, start_node=None):
@@ -494,6 +511,7 @@ class ObjectNode(Variable):
             else:
                 # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
                 self.add_variable(variable)
+                self.ordering.append(name)
 
     # Evaluate performance
     def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood"):
