@@ -5,9 +5,11 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import argparse
 import os
 import json
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from model.BuildModel import BuildModelFromConfig
+from dl.DataLoader import make_dataloader
 
 # get score
 def getScore(config):
@@ -15,41 +17,52 @@ def getScore(config):
     targetVar = config["targetVar"]
     controlVars = config["controlVars"]
     changeRates = config["changeRates"]
+
+    # data
+    dl = make_dataloader(None, None, None, None, modelName)
+    dl.train_test_split()
+    dl.pt_data = dl.test_data
+    dataLen = len(dl.test_data)
+
     # list model configs
     modelPaths = os.listdir(os.path.join("data/modelData", modelName))
+    scoreFilePath = os.path.join("data/modelData", modelName, "score.csv")
     if "score.csv" in modelPaths:
-        scoreList = pd.read_csv(os.path.join("data/modelData", modelName, "score.csv"))
-        return scoreList
+        return pd.read_csv(scoreFilePath)
 
-    modelPaths = [modelPath for modelPath in modelPaths if modelPath.endswith(".json")]
-    modelPaths.sort()
     scoreList = []
+    firstData = True
     # get score for each model
-    for modelPath in modelPaths:
-        print(modelPath)
-        scores = [modelPath]
-        try:
-            with open(os.path.join("data/modelData", modelName, modelPath), "r") as f:
-                modelConfig = json.load(f)
-        except:
-            print("error in loading: ", modelPath)
-            continue
-        model = BuildModelFromConfig(modelConfig)
-        scores.append(modelConfig.get("timeTaken", 0))
-        model.generate(10000)
-        """
-        where to get the score
-        """
-        scores.append(model.evaluate(targetVar, type="log_likelihood"))
-        for controlVar in controlVars:
-            for changeRate in changeRates:
-                scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity"))
-        scoreList.append(scores)
-
-    # make it dataframe
-    scoreList = pd.DataFrame(scoreList, columns=["model", "timeTaken", "log_likelihood"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
-    # save it
-    scoreList.to_csv(os.path.join("data/modelData", modelName, "score.csv"), index=False)
+    for folder in modelPaths:
+        folderPath = os.path.join("data/modelData", modelName, folder)
+        if os.path.isdir(folderPath):
+            models = os.listdir(folderPath)
+            for modelNum in models:
+                modelPath = os.path.join(folderPath, modelNum)
+                print(modelPath)
+                scores = [folder]
+                try:
+                    with open(modelPath, "r") as f:
+                        modelConfig = json.load(f)
+                except:
+                    print("error in loading: ", modelPath)
+                    continue
+                model = BuildModelFromConfig(modelConfig)
+                model.set_data_from_dataloader(dl)
+                """
+                where to get the score
+                """
+                scores.append(modelConfig.get("timeTaken", 0))
+                scores.append(model.evaluate(targetVar, type="log_likelihood"))
+                for controlVar in controlVars:
+                    for changeRate in changeRates:
+                        scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen))
+                
+                # make it dataframe
+                scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "log_likelihood"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
+                with open(scoreFilePath, 'a') as file:
+                    scores.to_csv(file, header=firstData, index=False)
+                firstData = False
 
     return scoreList
 
