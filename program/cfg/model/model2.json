@@ -1,0 +1,32 @@
+{
+    "variables": {
+        "age": {
+            "num_states": 3,
+            "parents": []
+        },
+        "gender": {
+            "num_states": 2,
+            "parents": []
+        },
+        "education": {
+            "num_states": 3,
+            "parents": ["age"]
+        },
+        "license": {
+            "num_states": 2,
+            "parents": ["age", "gender", "education"]
+        },
+        "access": {
+            "num_states": 2,
+            "parents": ["license", "education"]
+        },
+        "income": {
+            "num_states": 3,
+            "parents": ["access"]
+        },
+        "employed": {
+            "num_states": 2,
+            "parents": ["age", "license", "income"]
+        }
+    }
+}
