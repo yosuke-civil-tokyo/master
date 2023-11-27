@@ -503,7 +503,9 @@ class ObjectNode(Variable):
             var.generate_random_cpt()
 
     # Setting data to each variable
-    def set_data_from_dataloader(self, dataloader, column_list):
+    def set_data_from_dataloader(self, dataloader, column_list=None):
+        if column_list == None:
+            column_list = list(self.variables.keys())
         variables = dataloader.get_data(column_list)
         for name, variable in variables.items():
             if name in self.variables:
@@ -514,7 +516,7 @@ class ObjectNode(Variable):
                 self.ordering.append(name)
 
     # Evaluate performance
-    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood"):
+    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood", num_samples=1000):
 
         target_variable = self.find_variable(targetVar)
         control_variable = self.find_variable(controlVar) if controlVar else None
@@ -525,7 +527,7 @@ class ObjectNode(Variable):
             # print("Log Likelihood: ", ll)
             return ll
         elif type == "elasticity":
-            return self.calculate_elasticity(target_variable, control_variable, changeRate)
+            return self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples)
 
         # check elasticity
         """try:

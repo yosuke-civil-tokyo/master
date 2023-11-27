@@ -15,6 +15,7 @@ class Variable:
 
     def set_cpt(self, cpt_array):
         self.cpt = np.array(cpt_array)
+        self.cpt = np.nan_to_num(self.cpt)
 
     def set_data(self, data_array, name=None):
         self.data = np.array(data_array)
@@ -66,6 +67,7 @@ class Variable:
 
         # Normalize to get probabilities
         self.cpt /= self.cpt.sum(axis=-1, keepdims=True)
+        self.cpt = np.nan_to_num(self.cpt)
 
     def estimate_cpt_with_parents(self, parent_names, variables_dict):
         parents = [variables_dict[name] for name in parent_names]
@@ -83,6 +85,7 @@ class Variable:
 
         # Normalize to get probabilities
         cpt /= cpt.sum(axis=-1, keepdims=True)
+        cpt = np.nan_to_num(cpt)
         return cpt
         
     # to sample
@@ -94,6 +97,9 @@ class Variable:
     
     def generate(self, num_samples):
         probs = self.probability_array(num_samples=num_samples)
+        # replace rows of nan, 0
+        zero_rows = np.all(probs==0, axis=1)
+        probs[zero_rows] = np.full((self.states,), 1/self.states)
         self.data = np.array([np.random.choice(self.states, p=probs[i]) for i in range(num_samples)])
 
     # evaluation functions
@@ -133,7 +139,7 @@ class Variable:
         num_states = [parent.get_states('output') for parent in self.parents] + [self.get_states('input')]
         cpt = np.random.rand(*num_states)
         cpt /= cpt.sum(axis=-1, keepdims=True)
-        self.cpt = cpt
+        self.cpt = np.nan_to_num(cpt)
         return cpt
     
     def modify_data(self, change_rate):
