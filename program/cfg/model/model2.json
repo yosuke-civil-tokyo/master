@@ -27,6 +27,116 @@
         "employed": {
             "num_states": 2,
             "parents": ["age", "license", "income"]
+        },
+        "trip1": {
+            "num_states": 4,
+            "parents": ["license", "income", "employed"]
+        },
+        "tDur1": {
+            "num_states": 4,
+            "parents": ["employed", "trip1"]
+        },
+        "act2": {
+            "num_states": 6,
+            "parents": ["employed", "trip1"]
+        },
+        "aDur2": {
+            "num_states": 4,
+            "parents": ["act2"]
+        },
+        "trip2": {
+            "num_states": 4,
+            "parents": ["trip1", "act2"]
+        },
+        "tDur2": {
+            "num_states": 4,
+            "parents": ["trip2"]
+        },
+        "act3": {
+            "num_states": 6,
+            "parents": ["trip2"]
+        },
+        "aDur3": {
+            "num_states": 4,
+            "parents": ["act3"]
+        },
+        "trip3": {
+            "num_states": 4,
+            "parents": ["trip2", "act3"]
+        },
+        "tDur3": {
+            "num_states": 4,
+            "parents": ["trip3"]
+        },
+        "Totaltripduration": {
+            "num_states": 4,
+            "parents": ["tDur1", "tDur2", "tDur3"]
+        },
+        "act4": {
+            "num_states": 6,
+            "parents": ["trip3"]
+        },
+        "aDur4": {
+            "num_states": 4,
+            "parents": ["act4"]
+        },
+        "trip4": {
+            "num_states": 4,
+            "parents": ["trip3", "act4"]
+        },
+        "tDur4": {
+            "num_states": 4,
+            "parents": ["trip4"]
+        },
+        "Totalactivityduration": {
+            "num_states": 4,
+            "parents": ["aDur2", "aDur3", "aDur4"]
+        },
+        "act5": {
+            "num_states": 6,
+            "parents": ["trip4"]
+        },
+        "aDur5": {
+            "num_states": 4,
+            "parents": ["act5"]
+        },
+        "trip5": {
+            "num_states": 4,
+            "parents": ["trip4", "act5"]
+        },
+        "tDur5": {
+            "num_states": 4,
+            "parents": ["trip5"]
+        },
+        "act6": {
+            "num_states": 6,
+            "parents": ["trip5"]
+        },
+        "aDur6": {
+            "num_states": 4,
+            "parents": ["act6"]
+        },
+        "trip6": {
+            "num_states": 4,
+            "parents": ["trip5", "act6"]
+        },
+        "tDur6": {
+            "num_states": 4,
+            "parents": ["trip6"]
+        },
+        "act7": {
+            "num_states": 6,
+            "parents": ["trip6"]
+        },
+        "aDur7": {
+            "num_states": 4,
+            "parents": ["act7"]
+        }
+    },
+    "objects": {
+        "obj1": {
+            "variables": ["age", "gender", "education", "license", "access", "income", "employed", "trip1", "tDur1", "act2", "aDur2", "trip2", "tDur2", "act3", "aDur3", "trip3", "tDur3", "Totaltripduration", "act4", "aDur4", "trip4", "tDur4", "Totalactivityduration", "act5", "aDur5", "trip5", "tDur5", "act6", "aDur6", "trip6", "tDur6", "act7", "aDur7"],
+            "in_obj": []
         }
     }
 }
