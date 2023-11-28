@@ -83,17 +83,24 @@ class ObjectNode(Variable):
         if fixed_positions is None:
             fixed_positions = {}
     
-        current_ordering = list(self.variables.keys())
-        random.shuffle(current_ordering)
+        initial_ordering = [k for k in self.variables.keys() if k not in fixed_positions.values()]
+        random.shuffle(initial_ordering)
+        print(initial_ordering)
 
         # Apply fixed positions if provided
-        for var, pos in fixed_positions.items():
-            current_ordering.remove(var)
-            current_ordering.insert(pos, var)
+        current_ordering = [None for _ in range(len(self.variables))]
+        for i in range(len(current_ordering)):
+            if i in fixed_positions.keys():
+                current_ordering[i] = fixed_positions[i]
+
+            else:
+                current_ordering[i] = initial_ordering.pop(0)
 
         best_score = float('-inf')
         improvement = True
-        swap_pairs = [[i, i+1] for i in range(len(current_ordering) - 1) if not {i, i+1} & set(fixed_positions.values())]
+        swap_pairs = [[i, i+1] for i in range(len(current_ordering) - 1) if not {i, i+1} & set(d_swap.keys())]
+        print(swap_pairs)
+        print(current_ordering)
         
         # search for the best ordering, until no improvement is found by swapping
         with ProcessPoolExecutor() as executor:

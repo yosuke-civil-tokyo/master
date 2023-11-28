@@ -84,12 +84,11 @@ def exTest(config, flag=0):
 
         # Visualize the structures
         if config.get("visualize", False):
-            for obj_conf in object_configs:
-                print(f"Visualizing structure for {obj_conf['name']}...")
-                try:
-                    objects[obj_conf['name']].visualize_structure()
-                except:
-                    print("Error: Could not visualize structure of Object \"{}\"".format(obj_conf['name']))
+            print(f"Visualizing structure")
+            try:
+                objects.get("obj1").visualize_structure()
+            except:
+                print("Error: Could not visualize structure of Object \"{}\"".format(obj_conf['name']))
 
 
         # save the model
