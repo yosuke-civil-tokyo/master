@@ -21,6 +21,7 @@ class ObjectNode(Variable):
         self.name = name
         self.variables = variables
         self.input = []
+        self.output = name
         self.input_data = self.data
         self.output_data = self.data
         self.input_states = self.states
@@ -36,6 +37,7 @@ class ObjectNode(Variable):
         elif data_type == 'output':
             self.output_data = np.array(data_array)
             self.output_states=int(np.max(data_array) + 1)
+            self.output = variable_name
 
     def get_variables(self, data_type='input'):
         if data_type == 'input':
@@ -81,17 +83,24 @@ class ObjectNode(Variable):
         if fixed_positions is None:
             fixed_positions = {}
     
-        current_ordering = list(self.variables.keys())
-        random.shuffle(current_ordering)
+        initial_ordering = [k for k in self.variables.keys() if k not in fixed_positions.values()]
+        random.shuffle(initial_ordering)
+        print(initial_ordering)
 
         # Apply fixed positions if provided
-        for var, pos in fixed_positions.items():
-            current_ordering.remove(var)
-            current_ordering.insert(pos, var)
+        current_ordering = [None for _ in range(len(self.variables))]
+        for i in range(len(current_ordering)):
+            if i in fixed_positions.keys():
+                current_ordering[i] = fixed_positions[i]
+
+            else:
+                current_ordering[i] = initial_ordering.pop(0)
 
         best_score = float('-inf')
         improvement = True
-        swap_pairs = [[i, i+1] for i in range(len(current_ordering) - 1) if not {i, i+1} & set(fixed_positions.values())]
+        swap_pairs = [[i, i+1] for i in range(len(current_ordering) - 1) if not {i, i+1} & set(fixed_positions.keys())]
+        print(swap_pairs)
+        print(current_ordering)
         
         # search for the best ordering, until no improvement is found by swapping
         with ProcessPoolExecutor() as executor:
@@ -120,20 +129,33 @@ class ObjectNode(Variable):
 
     def score_ordering(self, ordering):
         name_to_cpt = {}
-        name_to_parents = {var_name: [] for var_name in self.variables.keys()}
+        name_to_parents = {}
 
         for var_name in ordering:
-            preceding_vars = ordering[:ordering.index(var_name)]
-            best_parents, best_cpt = self.find_optimal_parents(var_name, preceding_vars)
-            name_to_parents[var_name] = best_parents
-            name_to_cpt[var_name] = best_cpt
+            if var_name in self.input:
+                continue
 
-        total_score = sum(self.temp_BIC_score(var_name, name_to_parents, name_to_cpt[var_name]) for var_name in ordering)
+            preceding_vars = ordering[:ordering.index(var_name)]
+            variable = self.variables[var_name]
+            # if the variable is an object node, iterate over its input variables
+            if isinstance(variable, ObjectNode):
+                for input_var_name in variable.input:
+                    input_variable = variable.variables[input_var_name]
+                    # assuming that the input variable is not an object node
+                    best_parents, best_cpt = self.find_optimal_parents(input_variable, preceding_vars)
+                    name_to_parents[input_var_name] = best_parents
+                    name_to_cpt[input_var_name] = best_cpt
+            else:
+                best_parents, best_cpt = self.find_optimal_parents(variable, preceding_vars)
+                name_to_parents[var_name] = best_parents
+                name_to_cpt[var_name] = best_cpt
+
+        total_score = sum(self.temp_BIC_score(var_name, name_to_parents, name_to_cpt[var_name]) for var_name in name_to_parents.keys())
         return total_score
 
     def temp_BIC_score(self, var_name, name_to_parents, cpt):
         # Calculate the BIC score for a given variable, its parents, and its CPT
-        variable = self.variables[var_name]
+        variable = self.find_variable(var_name)
         N = len(variable.get_data('input'))
         k = cpt.size
         log_likelihood = self.temp_calculate_log_likelihood(var_name, name_to_parents, cpt)
@@ -142,7 +164,7 @@ class ObjectNode(Variable):
 
     def temp_calculate_log_likelihood(self, var_name, name_to_parents, cpt):
         # Implement the logic similar to calculate_log_likelihood but use the provided CPT and parent names
-        variable = self.variables[var_name]
+        variable = self.find_variable(var_name)
         data = variable.get_data('input')
         if name_to_parents[var_name]:
             indices = np.stack([self.variables[parent_name].get_data('output') for parent_name in name_to_parents[var_name]] + [data], 0)
@@ -193,7 +215,7 @@ class ObjectNode(Variable):
             # When there are no parent variables (independent variable)
             probs = variable.cpt[data]
 
-        log_likelihood = np.sum(np.log(probs))
+        log_likelihood = np.sum(np.log(probs + 1e-6))
         return log_likelihood
     
     def calculate_LL0(self, variable):
@@ -227,14 +249,14 @@ class ObjectNode(Variable):
         best_cpt = None
         best_score = float('-inf')
         
-        LL0 = self.calculate_LL0(self.variables[variable])
+        LL0 = self.calculate_LL0(variable)
 
-        for r in range(len(preceding_vars) + 1):
+        for r in range(min(len(preceding_vars) + 1, 3)):
             improved_in_r = False
             for subset in combinations(preceding_vars, r):
                 parent_names = list(subset)
-                cpt = self.variables[variable].estimate_cpt_with_parents(parent_names, self.variables)
-                score = self.temp_BIC_score(variable, {variable: parent_names}, cpt)
+                cpt = variable.estimate_cpt_with_parents(parent_names, self.variables)
+                score = self.temp_BIC_score(variable.name, {variable.name: parent_names}, cpt)
                 if score > best_score:
                     # print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
                     improved_in_r = True
@@ -259,20 +281,25 @@ class ObjectNode(Variable):
         
         LL0 = self.calculate_LL0(variable)
         
-        for subset in chain.from_iterable(combinations(preceding_vars, r) for r in range(min(len(preceding_vars) + 1, 5))):
-            candidate_parents = [self.variables[var] for var in subset]
-            variable.set_parents(candidate_parents)
-            variable.estimate_cpt()
-            
-            score = self.BIC_sep(variable)
+        for r in range(min(len(preceding_vars) + 1, 3)):
+            improved_in_r = False
+            for subset in combinations(preceding_vars, r):
+                candidate_parents = [self.variables[var] for var in subset]
+                variable.set_parents(candidate_parents)
+                variable.estimate_cpt()
 
-            # print("Candidate Parents: ", [self.variables[var].name for var in subset])
-            # print("Score: ", score)
-            
-            if score > best_score:
-                # print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
-                best_score = score
-                best_parents = candidate_parents
+                score = self.BIC_sep(variable)
+
+                # print("Candidate Parents: ", [self.variables[var].name for var in subset])
+                # print("Score: ", score)
+
+                if score > best_score:
+                    improved_in_r = True
+                    # print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
+                    best_score = score
+                    best_parents = candidate_parents
+            if not improved_in_r:
+                break
         
         variable.set_parents(best_parents)
         variable.estimate_cpt()
@@ -283,10 +310,12 @@ class ObjectNode(Variable):
         # print("Likelihood Ratio: ", likelihood_ratio)
 
     # another structure learning method, most simple greedy
-    def greedy_structure_learning(self):
+    def greedy_structure_learning(self, max_iterations=10000):
+        start_time = time.time()
         self.randomize_parent_sets()
         improvement = True
-        while improvement:
+        iteration = 0
+        while improvement and iteration < max_iterations:
             improvement = False
             best_gain = 0
             best_operation = None
@@ -303,6 +332,59 @@ class ObjectNode(Variable):
                 # print("Best Operation: ", best_operation)
                 self.perform_arc_operation(best_operation)
                 improvement = True
+            iteration += 1
+        print(iteration)
+        self.calc_time = time.time() - start_time
+
+    def tabu_structure_learning(self, tabu_length=10, max_iterations=10000):
+        start_time = time.time()
+        self.randomize_parent_sets()
+        improvement = True
+        iteration = 0
+        tabu_list = []
+
+        while improvement and iteration < max_iterations:
+            improvement = False
+            best_gain = 0
+            best_operation = None
+
+            # Evaluate all possible legal arc operations not in the Tabu list
+            for operation in self.get_legal_arc_operations():
+                if operation not in tabu_list:
+                    gain = self.calculate_bic_gain(operation)
+                    if gain > best_gain:
+                        best_gain = gain
+                        best_operation = operation
+
+            # Perform the best operation, if any
+            if best_gain > 0:
+                self.perform_arc_operation(best_operation)
+                improvement = True
+
+                # Add the reverse of the operation to the Tabu list
+                reverse_operation = self.get_reverse_operation(best_operation)
+                tabu_list.append(reverse_operation)
+
+                # Keep the Tabu list within the specified length
+                if len(tabu_list) > tabu_length:
+                    tabu_list.pop(0)
+
+            iteration += 1
+        print(iteration)
+        self.calc_time = time.time() - start_time
+
+    # functions used in structure learning
+    def get_reverse_operation(self, operation):
+        # Return the reverse of the given operation
+        var_name, parent_name, op_type = operation
+        if op_type == "add":
+            return (var_name, parent_name, "remove")
+        elif op_type == "remove":
+            return (var_name, parent_name, "add")
+        elif op_type == "reverse":
+            return (parent_name, var_name, "reverse")  # Reverse the direction
+        else:
+            raise ValueError("Invalid operation type.")
 
     def get_legal_arc_operations(self):
         # get all possible arc operations (add, remove, reverse)
@@ -343,11 +425,11 @@ class ObjectNode(Variable):
     
     # check if start_node is reachable from end_node by going up to the parents
     def reachable(self, start_node, end_node, allowDirect=True):
-        if len(self.variables[end_node].parents) == 0:
+        if len(self.find_variable(end_node).parents) == 0:
             return False
         
         reachable = []
-        for parent in self.variables[end_node].parents:
+        for parent in self.find_variable(end_node).parents:
             if parent.name == start_node:
                 if not allowDirect:
                     return reachable.append(False)
@@ -408,12 +490,15 @@ class ObjectNode(Variable):
         
     def randomize_parent_sets(self):
         variable_names = list(self.variables.keys())
+        random.shuffle(variable_names)
         searched_variables = []
+        for var_name in variable_names:
+            self.variables[var_name].parents = []
         for var_name in variable_names:
             variable = self.variables[var_name]
 
             # Randomly decide the number of parents (you can set limits as needed)
-            num_parents = random.randint(0, len(searched_variables))
+            num_parents = random.randint(0, min(len(searched_variables), 5))
 
             # Randomly select parent variables
             potential_parents = [name for name in searched_variables]
@@ -423,6 +508,7 @@ class ObjectNode(Variable):
             if len(selected_parents) > 0:
                 variable.set_parents([self.variables[parent_name] for parent_name in selected_parents])
             variable.estimate_cpt()
+            searched_variables.append(var_name)
 
     # generate data
     def generate(self, num_samples, start_node=None):
@@ -439,7 +525,9 @@ class ObjectNode(Variable):
             var.generate_random_cpt()
 
     # Setting data to each variable
-    def set_data_from_dataloader(self, dataloader, column_list):
+    def set_data_from_dataloader(self, dataloader, column_list=None):
+        if column_list == None:
+            column_list = list(self.variables.keys())
         variables = dataloader.get_data(column_list)
         for name, variable in variables.items():
             if name in self.variables:
@@ -447,9 +535,10 @@ class ObjectNode(Variable):
             else:
                 # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
                 self.add_variable(variable)
+                self.ordering.append(name)
 
     # Evaluate performance
-    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood"):
+    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood", num_samples=1000):
 
         target_variable = self.find_variable(targetVar)
         control_variable = self.find_variable(controlVar) if controlVar else None
@@ -459,8 +548,14 @@ class ObjectNode(Variable):
             ll = target_variable.log_likelihood()
             # print("Log Likelihood: ", ll)
             return ll
+        if type == "BIC":
+            # sum up BIC score for every variable
+            return self.BIC_all()
         elif type == "elasticity":
-            return self.calculate_elasticity(target_variable, control_variable, changeRate)
+            if self.reachable(control_variable.name, target_variable.name):
+                return self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples)
+            else:
+                return 0
 
         # check elasticity
         """try:
@@ -487,7 +582,7 @@ class ObjectNode(Variable):
                     pos[var_name] = (row_col[1], -row_col[0])  # Set the position for this node
 
                     for parent in variable.parents:
-                        G.add_edge(parent.name, var_name)
+                        G.add_edge(parent.output, var_name)
 
                     row_col[1] += 1
                     if row_col[1] >= 3:  # Maximum number of columns
@@ -533,7 +628,7 @@ class ObjectNode(Variable):
                 # Otherwise, extract the variable's parameters as usual
                 model_params["variables"][var_name] = {
                     "num_states": variable.states,
-                    "parents": [parent.name for parent in variable.parents],
+                    "parents": [parent.output for parent in variable.parents],
                     "cpt": variable.cpt.tolist() if variable.cpt is not None else None
                 }
                 model_params["objects"][self.name]["variables"].append(var_name)
@@ -543,25 +638,24 @@ class ObjectNode(Variable):
     def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000):
         # generate data with original condition
         self.generate(num_samples=num_samples, start_node=control_variable.name)
-        prob_table_ori = self.aggregate_distribution_table(target_variable)
+        prob_table_ori = self.aggregate_distribution_table(target_variable, num_samples)
 
         # modify control variable's data
         control_variable.modify_data(change_rate)
 
         # generate data with modified condition
         self.generate(num_samples=num_samples, start_node=control_variable.name)
-        prob_table_mod = self.aggregate_distribution_table(target_variable)
+        prob_table_mod = self.aggregate_distribution_table(target_variable, num_samples)
 
         # calculate elasticity
         elasticity = np.mean(np.abs(prob_table_ori - prob_table_mod) / prob_table_ori)
 
         return elasticity
     
-    def aggregate_distribution_table(self, target_variable):
+    def aggregate_distribution_table(self, target_variable, num_samples=10000):
         # get the distribution table of the target variable
-        target_data = target_variable.get_data('output')
-        target_states = target_variable.get_states('output')
-        target_dist = np.array([np.sum(target_data == i) for i in range(target_states)]) / len(target_data)
+        target_probs = target_variable.probability_array(num_samples=num_samples)
+        target_dist = np.mean(target_probs, axis=0)
 
         return target_dist
 

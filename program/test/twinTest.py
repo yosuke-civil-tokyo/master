@@ -5,9 +5,11 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import argparse
 import os
 import json
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from model.BuildModel import BuildModelFromConfig
+from dl.DataLoader import make_dataloader
 
 # get score
 def getScore(config):
@@ -15,94 +17,119 @@ def getScore(config):
     targetVar = config["targetVar"]
     controlVars = config["controlVars"]
     changeRates = config["changeRates"]
+
+    # data
+    dl = make_dataloader(None, None, None, None, modelName)
+    dl.train_test_split()
+    dl.pt_data = dl.test_data
+    dataLen = len(dl.test_data)
+
     # list model configs
     modelPaths = os.listdir(os.path.join("data/modelData", modelName))
+    scoreFilePath = os.path.join("data/modelData", modelName, "score.csv")
     if "score.csv" in modelPaths:
-        scoreList = pd.read_csv(os.path.join("data/modelData", modelName, "score.csv"))
-        return scoreList
+        return pd.read_csv(scoreFilePath)
 
-    modelPaths = [modelPath for modelPath in modelPaths if modelPath.endswith(".json")]
-    modelPaths.sort()
     scoreList = []
+    firstData = True
     # get score for each model
-    for modelPath in modelPaths:
-        print(modelPath)
-        scores = [modelPath]
-        try:
-            with open(os.path.join("data/modelData", modelName, modelPath), "r") as f:
-                modelConfig = json.load(f)
-        except:
-            print("error in loading: ", modelPath)
-            continue
-        model = BuildModelFromConfig(modelConfig)
-        scores.append(modelConfig.get("timeTaken", 0))
-        model.generate(10000)
-        """
-        where to get the score
-        """
-        scores.append(model.evaluate(targetVar, type="log_likelihood"))
-        for controlVar in controlVars:
-            for changeRate in changeRates:
-                scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity"))
-        scoreList.append(scores)
-
-    # make it dataframe
-    scoreList = pd.DataFrame(scoreList, columns=["model", "timeTaken", "log_likelihood"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
-    # save it
-    scoreList.to_csv(os.path.join("data/modelData", modelName, "score.csv"), index=False)
+    for folder in modelPaths:
+        folderPath = os.path.join("data/modelData", modelName, folder)
+        if os.path.isdir(folderPath):
+            models = os.listdir(folderPath)
+            for modelNum in models:
+                modelPath = os.path.join(folderPath, modelNum)
+                print(modelPath)
+                scores = [folder]
+                try:
+                    with open(modelPath, "r") as f:
+                        modelConfig = json.load(f)
+                except:
+                    print("error in loading: ", modelPath)
+                    continue
+                model = BuildModelFromConfig(modelConfig)
+                model.set_data_from_dataloader(dl)
+                """
+                where to get the score
+                """
+                scores.append(modelConfig.get("timeTaken", 0))
+                scores.append(model.evaluate(targetVar, type="log_likelihood"))
+                scores.append(model.evaluate(targetVar, type="BIC"))
+                for controlVar in controlVars:
+                    for changeRate in changeRates:
+                        scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen))
+                
+                # make it dataframe
+                scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "log_likelihood", "BIC"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
+                with open(scoreFilePath, 'a') as file:
+                    scores.to_csv(file, header=firstData, index=False)
+                firstData = False
 
     return scoreList
 
 
 # visualize
 def visualize(modelName, scoreList, criterion="log_likelihood"):
-    if criterion=="log_likelihood":
-        scoreList = scoreList[["model"  , "log_likelihood"]]
-        # log_likelihood of true model
-        trueModel = scoreList[scoreList["model"]=="truth.json"]["log_likelihood"].values[0]
-        scoreList = scoreList[scoreList["model"]!="truth.json"]
-        # log_likelihood of other models
-        # aggregate with strings before "_"
-        print(scoreList["model"].apply(lambda x: "_".join(x.split("_")[:-1])).values)
-        scoreList["modeltype"] = scoreList["model"].apply(lambda x: "_".join(x.split("_")[:-1])).values
-        scoreList = scoreList[["modeltype", "log_likelihood"]]
-        # aggregate by modeltype
-        scoreListMean = scoreList.groupby("modeltype").mean().reset_index()
-        scoreListUpper = scoreList.groupby("modeltype").quantile(0.95).reset_index()
-        scoreListLower = scoreList.groupby("modeltype").quantile(0.05).reset_index()
-        # plot, dot of true model, and boxplot of other models
-        plt.figure(figsize=(10, 6))
-        plt.plot([0], [trueModel], color="red", label="true model", marker="o", markersize=10)
-        # plt.boxplot(scoreListMean["log_likelihood"], positions=[1], widths=0.5, showmeans=True)
-        plt.errorbar([1], scoreListMean["log_likelihood"].values[0], yerr=[[scoreListMean["log_likelihood"].values[0]-scoreListLower["log_likelihood"].values[0]], [scoreListUpper["log_likelihood"].values[0]-scoreListMean["log_likelihood"].values[0]]], fmt='o', color='black', capsize=5)
-        plt.xticks([0, 1], ["true model", "pred model"])
-        plt.ylabel("log_likelihood")
-        plt.legend()
-        plt.savefig(os.path.join("data/modelData", modelName, "log_likelihood.png"))
+    print("criterion: ", criterion)
+    if criterion in ["log_likelihood", "BIC", "timeTaken"]:
+        metric = criterion
+        scoreList = scoreList[["model", metric]]
 
-    elif criterion=="elasticity":
+        # Separate the true model and other models
+        trueModelScore = scoreList[scoreList["model"] == "truth"][metric].values[0]
+        scoreList = scoreList[scoreList["model"] != "truth"]
+
+        # Aggregate by model type
+        scoreListMean = scoreList.groupby("model").mean().reset_index()
+        scoreListUpper = scoreList.groupby("model").quantile(0.95).reset_index()
+        scoreListLower = scoreList.groupby("model").quantile(0.05).reset_index()
+
+        # Plotting
+        plt.figure(figsize=(10, 6))
+        plt.plot([0], [trueModelScore], color="red", label="True Model", marker="o", markersize=10)
+
+        for i, modeltype in enumerate(scoreListMean["model"]):
+            mean_value = scoreListMean[scoreListMean["model"] == modeltype][metric].values[0]
+            upper_value = scoreListUpper[scoreListUpper["model"] == modeltype][metric].values[0]
+            lower_value = scoreListLower[scoreListLower["model"] == modeltype][metric].values[0]
+            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=modeltype, capsize=5)
+
+        plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
+        plt.ylabel(metric)
+        plt.legend()
+        plt.savefig(os.path.join("data/modelData", modelName, f"{metric}.png"))
+        plt.close()
+
+    if criterion == "elasticity":
         # Filter for elasticity columns
         elasticity_columns = [col for col in scoreList.columns if col.startswith("elasticity_")]
         controlVars = set('_'.join(col.split('_')[1:-1]) for col in elasticity_columns)
         changeRates = sorted(list(set(float(col.split('_')[-1]) for col in elasticity_columns)))
 
         for controlVar in controlVars:
-            # Prepare data for plotting
-            plot_data = []
-            for changeRate in changeRates:
-                col_name = f"elasticity_{controlVar}_{changeRate}"
-                elasticity_values = scoreList[col_name].dropna()
-                elasticity_values = elasticity_values[elasticity_values != 0]
-                mean_value = elasticity_values.mean()
-                upper_value = elasticity_values.quantile(0.95)
-                lower_value = elasticity_values.quantile(0.05)
-                plot_data.append((changeRate, mean_value, lower_value, upper_value))
-
-            # Plotting
             plt.figure(figsize=(10, 6))
-            x, means, lowers, uppers = zip(*plot_data)
-            plt.plot(x, means, label='Mean Elasticity', marker='o')
-            plt.fill_between(x, lowers, uppers, alpha=0.2, label='0.05-0.95 Quantile Range')
+
+            # Separate models
+            models = scoreList["model"].unique()
+            for model in models:
+                model_data = scoreList[scoreList["model"] == model]
+
+                # Prepare data for plotting for each model
+                plot_data = []
+                for changeRate in changeRates:
+                    col_name = f"elasticity_{controlVar}_{changeRate}"
+                    elasticity_values = model_data[col_name].dropna()
+                    elasticity_values = elasticity_values[elasticity_values != 0]
+                    mean_value = elasticity_values.mean()
+                    upper_value = elasticity_values.quantile(0.95)
+                    lower_value = elasticity_values.quantile(0.05)
+                    plot_data.append((changeRate, mean_value, lower_value, upper_value))
+
+                # Plotting for each model
+                x, means, lowers, uppers = zip(*plot_data)
+                plt.plot(x, means, label=f'{model} Mean Elasticity', marker='o')
+                plt.fill_between(x, lowers, uppers, alpha=0.2, label=f'{model} 0.05-0.95 Quantile Range')
+
             plt.xlabel('Change Rate')
             plt.ylabel('Elasticity')
             plt.title(f'Elasticity of {controlVar} on {modelName}')
@@ -110,30 +137,6 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
             plt.grid(True)
             plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_{controlVar}.png"))
             plt.close()
-
-    # the same as log_likelihood
-    elif criterion=="timeTaken":
-        scoreList = scoreList[["model"  , "timeTaken"]]
-        # timeTaken of true model
-        trueModel = scoreList[scoreList["model"]=="truth.json"]["timeTaken"].values[0]
-        scoreList = scoreList[scoreList["model"]!="truth.json"]
-        # timeTaken of other models
-        # aggregate with strings before "_"
-        scoreList["modeltype"] = scoreList["model"].apply(lambda x: "_".join(x.split("_")[:-1])).values
-        scoreList = scoreList[["modeltype", "timeTaken"]]
-        # aggregate by modeltype
-        scoreListMean = scoreList.groupby("modeltype").mean().reset_index()
-        scoreListUpper = scoreList.groupby("modeltype").quantile(0.95).reset_index()
-        scoreListLower = scoreList.groupby("modeltype").quantile(0.05).reset_index()
-        # plot, dot of true model, and boxplot of other models
-        plt.figure(figsize=(10, 6))
-        plt.plot([0], [trueModel], color="red", label="true model", marker="o", markersize=10)
-        # plt.boxplot(scoreListMean["timeTaken"], positions=[1], widths=0.5, showmeans=True)
-        plt.errorbar([1], scoreListMean["timeTaken"].values[0], yerr=[[scoreListMean["timeTaken"].values[0]-scoreListLower["timeTaken"].values[0]], [scoreListUpper["timeTaken"].values[0]-scoreListMean["timeTaken"].values[0]]], fmt='o', color='black', capsize=5)
-        plt.xticks([0, 1], ["true model", "pred model"])
-        plt.ylabel("timeTaken")
-        plt.legend()
-        plt.savefig(os.path.join("data/modelData", modelName, "timeTaken.png"))
 
 
 
@@ -154,6 +157,7 @@ if __name__ == "__main__":
     scoreList = getScore(config)
     # visualize
     visualize(config["modelName"], scoreList, criterion="log_likelihood")
+    visualize(config["modelName"], scoreList, criterion="BIC")
     visualize(config["modelName"], scoreList, criterion="elasticity")
     visualize(config["modelName"], scoreList, criterion="timeTaken")
 

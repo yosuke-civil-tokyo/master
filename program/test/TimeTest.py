@@ -1,5 +1,7 @@
+import os
 from pathlib import Path
 import sys
+import time
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # list the structure optimization experiment case
@@ -11,7 +13,7 @@ from model.OOBN import ObjectNode
 from model.BN import Variable
 
 # example test case
-def exTest(config, flag=0):
+def exTest(config):
     case_name = config.get("case_name")
     data_files = config.get("data_files")
     convert_dict = config.get("convert_dict")
@@ -19,6 +21,7 @@ def exTest(config, flag=0):
     change_name_dict = config.get("change_name_dict")
     object_configs = config["objects"]
     evaluate_target = config["evaluate_target"]
+    structure_opt = config["structure_opt"]
 
     # Load data using the new make_dataloader function
     print("Loading data...")
@@ -54,12 +57,22 @@ def exTest(config, flag=0):
                 objects[obj_conf['name']].add_variable(objects[child_name])
 
     # Perform structure optimization
-    for flag in range(int(config.get("flags", 1))):
+    flag = 0
+    start_time = time.time()
+    duration = config.get("duration", 0)
+    while time.time() - start_time < duration:
         for obj_conf in object_configs:
             fixed_positions = {k: v for k, v in obj_conf["fix"].items()}
             print(f"Structure optimization for {obj_conf['name']}...")
-            objects[obj_conf['name']].structure_optimization(fixed_positions)
-
+            if structure_opt == "structure_optimization":
+                objects[obj_conf['name']].structure_optimization(fixed_positions)
+            elif structure_opt == "greedy_structure_learning":
+                objects[obj_conf['name']].greedy_structure_learning()
+            elif structure_opt == "tabu_structure_learning":
+                objects[obj_conf['name']].tabu_structure_learning()
+            else:
+                raise ValueError("Invalid structure optimization method!")
+            
         # evaluate performance with test data
         # reset data with test
         if config.get("evaluate", False):
@@ -92,7 +105,10 @@ def exTest(config, flag=0):
 
 
         # save the model
-        objects.get("obj1").save_model_parameters(case_name+"/pred_"+str(flag))
+        if not os.path.exists(os.path.join("data", "modelData", case_name, structure_opt)):
+            os.makedirs(os.path.join("data", "modelData", case_name, structure_opt))
+        objects.get("obj1").save_model_parameters(os.path.join(case_name, structure_opt, str(flag)))
+        flag += 1
 
 
 
@@ -104,7 +120,12 @@ if __name__ == "__main__":
                         metavar="case_name",
                         type=str,
                         help="the name of the case to run")
+    parser.add_argument("StructureOpt",
+                        metavar="structure_opt",
+                        type=str,
+                        help="the name of the structure optimization method to run")
     args = parser.parse_args()
     config = Configs[args.CaseName]
+    config["structure_opt"] = args.StructureOpt
 
     exTest(config)
