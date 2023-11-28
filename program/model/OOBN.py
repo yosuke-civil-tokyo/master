@@ -215,7 +215,7 @@ class ObjectNode(Variable):
             # When there are no parent variables (independent variable)
             probs = variable.cpt[data]
 
-        log_likelihood = np.sum(np.log(probs))
+        log_likelihood = np.sum(np.log(probs + 1e-6))
         return log_likelihood
     
     def calculate_LL0(self, variable):
@@ -548,6 +548,9 @@ class ObjectNode(Variable):
             ll = target_variable.log_likelihood()
             # print("Log Likelihood: ", ll)
             return ll
+        if type == "BIC":
+            # sum up BIC score for every variable
+            return self.BIC_all()
         elif type == "elasticity":
             if self.reachable(control_variable.name, target_variable.name):
                 return self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples)

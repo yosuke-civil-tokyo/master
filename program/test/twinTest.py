@@ -54,12 +54,13 @@ def getScore(config):
                 """
                 scores.append(modelConfig.get("timeTaken", 0))
                 scores.append(model.evaluate(targetVar, type="log_likelihood"))
+                scores.append(model.evaluate(targetVar, type="BIC"))
                 for controlVar in controlVars:
                     for changeRate in changeRates:
                         scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen))
                 
                 # make it dataframe
-                scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "log_likelihood"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
+                scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "log_likelihood", "BIC"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
                 with open(scoreFilePath, 'a') as file:
                     scores.to_csv(file, header=firstData, index=False)
                 firstData = False
@@ -70,7 +71,7 @@ def getScore(config):
 # visualize
 def visualize(modelName, scoreList, criterion="log_likelihood"):
     print("criterion: ", criterion)
-    if criterion in ["log_likelihood", "timeTaken"]:
+    if criterion in ["log_likelihood", "BIC", "timeTaken"]:
         metric = criterion
         scoreList = scoreList[["model", metric]]
 
@@ -156,6 +157,7 @@ if __name__ == "__main__":
     scoreList = getScore(config)
     # visualize
     visualize(config["modelName"], scoreList, criterion="log_likelihood")
+    visualize(config["modelName"], scoreList, criterion="BIC")
     visualize(config["modelName"], scoreList, criterion="elasticity")
     visualize(config["modelName"], scoreList, criterion="timeTaken")
 
