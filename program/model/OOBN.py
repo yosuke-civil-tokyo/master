@@ -425,11 +425,11 @@ class ObjectNode(Variable):
     
     # check if start_node is reachable from end_node by going up to the parents
     def reachable(self, start_node, end_node, allowDirect=True):
-        if len(self.variables[end_node].parents) == 0:
+        if len(self.find_variable(end_node).parents) == 0:
             return False
         
         reachable = []
-        for parent in self.variables[end_node].parents:
+        for parent in self.find_variable(end_node).parents:
             if parent.name == start_node:
                 if not allowDirect:
                     return reachable.append(False)
@@ -549,7 +549,10 @@ class ObjectNode(Variable):
             # print("Log Likelihood: ", ll)
             return ll
         elif type == "elasticity":
-            return self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples)
+            if self.reachable(control_variable.name, target_variable.name):
+                return self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples)
+            else:
+                return 0
 
         # check elasticity
         """try:
