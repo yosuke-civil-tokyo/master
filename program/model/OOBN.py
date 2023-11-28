@@ -98,7 +98,7 @@ class ObjectNode(Variable):
 
         best_score = float('-inf')
         improvement = True
-        swap_pairs = [[i, i+1] for i in range(len(current_ordering) - 1) if not {i, i+1} & set(d_swap.keys())]
+        swap_pairs = [[i, i+1] for i in range(len(current_ordering) - 1) if not {i, i+1} & set(fixed_positions.keys())]
         print(swap_pairs)
         print(current_ordering)
         

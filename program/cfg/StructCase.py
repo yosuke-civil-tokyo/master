@@ -99,7 +99,7 @@ Configs = {
               "objs": [],
             }
         ],
-        "numrows": 100000,
+        "numrows": 50000,
         "evaluate_target": "trip1",
         "flags": 30,
         "duration": 100,
@@ -109,7 +109,7 @@ Configs = {
         "objects": [
             {"name": "obj1",
               "variables": ["age", "gender", "education", "license", "access", "income", "employed", "Totaltripduration", "Totalactivityduration"],
-              "fix": {7: "t1", 8: "t2", 9: "t3", 10: "t4", 11: "t5", 12: "t6", 13: "Totaltripduration", 14: "Totalactivityduration"},
+              "fix": {13: "Totaltripduration", 14: "Totalactivityduration"},
               "objs": ["t1", "t2", "t3", "t4", "t5", "t6"],
             },
             {"name": "t1",
@@ -155,10 +155,10 @@ Configs = {
              "objs": [],
             },
         ],
-        "numrows": 100000,
+        "numrows": 50000,
         "evaluate_target": "trip1",
         "flags": 1,
-        "duration": 1800,
+        "duration": 3600,
         "visualize": False,
     },
     "model2-normal": {
@@ -170,10 +170,10 @@ Configs = {
               "objs": [],
             },
         ],
-        "numrows": 100000,
+        "numrows": 50000,
         "evaluate_target": "trip1",
         "flags": 1,
-        "duration": 1800,
+        "duration": 3600,
         "visualize": False,
     },
 }
