@@ -632,25 +632,24 @@ class ObjectNode(Variable):
     def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000):
         # generate data with original condition
         self.generate(num_samples=num_samples, start_node=control_variable.name)
-        prob_table_ori = self.aggregate_distribution_table(target_variable)
+        prob_table_ori = self.aggregate_distribution_table(target_variable, num_samples)
 
         # modify control variable's data
         control_variable.modify_data(change_rate)
 
         # generate data with modified condition
         self.generate(num_samples=num_samples, start_node=control_variable.name)
-        prob_table_mod = self.aggregate_distribution_table(target_variable)
+        prob_table_mod = self.aggregate_distribution_table(target_variable, num_samples)
 
         # calculate elasticity
         elasticity = np.mean(np.abs(prob_table_ori - prob_table_mod) / prob_table_ori)
 
         return elasticity
     
-    def aggregate_distribution_table(self, target_variable):
+    def aggregate_distribution_table(self, target_variable, num_samples=10000):
         # get the distribution table of the target variable
-        target_data = target_variable.get_data('output')
-        target_states = target_variable.get_states('output')
-        target_dist = np.array([np.sum(target_data == i) for i in range(target_states)]) / len(target_data)
+        target_probs = target_variable.probability_array(num_samples=num_samples)
+        target_dist = np.mean(target_probs, axis=0)
 
         return target_dist
 
