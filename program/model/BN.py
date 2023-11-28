@@ -4,6 +4,7 @@ import math
 class Variable:
     def __init__(self, name, states):
         self.name = name
+        self.output = name
         self.states = states  # The number of possible states this variable can take
         self.parents = []  # List to store parent variables
         self.data = None  # Field to store data as a NumPy array

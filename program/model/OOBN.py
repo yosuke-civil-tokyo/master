@@ -21,6 +21,7 @@ class ObjectNode(Variable):
         self.name = name
         self.variables = variables
         self.input = []
+        self.output = name
         self.input_data = self.data
         self.output_data = self.data
         self.input_states = self.states
@@ -36,6 +37,7 @@ class ObjectNode(Variable):
         elif data_type == 'output':
             self.output_data = np.array(data_array)
             self.output_states=int(np.max(data_array) + 1)
+            self.output = variable_name
 
     def get_variables(self, data_type='input'):
         if data_type == 'input':
@@ -120,20 +122,33 @@ class ObjectNode(Variable):
 
     def score_ordering(self, ordering):
         name_to_cpt = {}
-        name_to_parents = {var_name: [] for var_name in self.variables.keys()}
+        name_to_parents = {}
 
         for var_name in ordering:
-            preceding_vars = ordering[:ordering.index(var_name)]
-            best_parents, best_cpt = self.find_optimal_parents(var_name, preceding_vars)
-            name_to_parents[var_name] = best_parents
-            name_to_cpt[var_name] = best_cpt
+            if var_name in self.input:
+                continue
 
-        total_score = sum(self.temp_BIC_score(var_name, name_to_parents, name_to_cpt[var_name]) for var_name in ordering)
+            preceding_vars = ordering[:ordering.index(var_name)]
+            variable = self.variables[var_name]
+            # if the variable is an object node, iterate over its input variables
+            if isinstance(variable, ObjectNode):
+                for input_var_name in variable.input:
+                    input_variable = variable.variables[input_var_name]
+                    # assuming that the input variable is not an object node
+                    best_parents, best_cpt = self.find_optimal_parents(input_variable, preceding_vars)
+                    name_to_parents[input_var_name] = best_parents
+                    name_to_cpt[input_var_name] = best_cpt
+            else:
+                best_parents, best_cpt = self.find_optimal_parents(variable, preceding_vars)
+                name_to_parents[var_name] = best_parents
+                name_to_cpt[var_name] = best_cpt
+
+        total_score = sum(self.temp_BIC_score(var_name, name_to_parents, name_to_cpt[var_name]) for var_name in name_to_parents.keys())
         return total_score
 
     def temp_BIC_score(self, var_name, name_to_parents, cpt):
         # Calculate the BIC score for a given variable, its parents, and its CPT
-        variable = self.variables[var_name]
+        variable = self.find_variable(var_name)
         N = len(variable.get_data('input'))
         k = cpt.size
         log_likelihood = self.temp_calculate_log_likelihood(var_name, name_to_parents, cpt)
@@ -142,7 +157,7 @@ class ObjectNode(Variable):
 
     def temp_calculate_log_likelihood(self, var_name, name_to_parents, cpt):
         # Implement the logic similar to calculate_log_likelihood but use the provided CPT and parent names
-        variable = self.variables[var_name]
+        variable = self.find_variable(var_name)
         data = variable.get_data('input')
         if name_to_parents[var_name]:
             indices = np.stack([self.variables[parent_name].get_data('output') for parent_name in name_to_parents[var_name]] + [data], 0)
@@ -227,14 +242,14 @@ class ObjectNode(Variable):
         best_cpt = None
         best_score = float('-inf')
         
-        LL0 = self.calculate_LL0(self.variables[variable])
+        LL0 = self.calculate_LL0(variable)
 
         for r in range(min(len(preceding_vars) + 1, 3)):
             improved_in_r = False
             for subset in combinations(preceding_vars, r):
                 parent_names = list(subset)
-                cpt = self.variables[variable].estimate_cpt_with_parents(parent_names, self.variables)
-                score = self.temp_BIC_score(variable, {variable: parent_names}, cpt)
+                cpt = variable.estimate_cpt_with_parents(parent_names, self.variables)
+                score = self.temp_BIC_score(variable.name, {variable.name: parent_names}, cpt)
                 if score > best_score:
                     # print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
                     improved_in_r = True
@@ -554,7 +569,7 @@ class ObjectNode(Variable):
                     pos[var_name] = (row_col[1], -row_col[0])  # Set the position for this node
 
                     for parent in variable.parents:
-                        G.add_edge(parent.name, var_name)
+                        G.add_edge(parent.output, var_name)
 
                     row_col[1] += 1
                     if row_col[1] >= 3:  # Maximum number of columns
@@ -600,7 +615,7 @@ class ObjectNode(Variable):
                 # Otherwise, extract the variable's parameters as usual
                 model_params["variables"][var_name] = {
                     "num_states": variable.states,
-                    "parents": [parent.name for parent in variable.parents],
+                    "parents": [parent.output for parent in variable.parents],
                     "cpt": variable.cpt.tolist() if variable.cpt is not None else None
                 }
                 model_params["objects"][self.name]["variables"].append(var_name)
