@@ -48,7 +48,7 @@ def getScore(config):
                     print("error in loading: ", modelPath)
                     continue
                 model = BuildModelFromConfig(modelConfig)
-                model.set_data_from_dataloader(dl)
+                model.set_data_from_dataloader(dl, column_list=list(modelConfig.get("variables").keys()))
                 """
                 where to get the score
                 """

@@ -530,10 +530,11 @@ class ObjectNode(Variable):
             column_list = list(self.variables.keys())
         variables = dataloader.get_data(column_list)
         for name, variable in variables.items():
-            if name in self.variables:
-                self.variables[name].set_data(variable.get_data('input'), name)
+            inVar = self.find_variable(name)
+            if inVar is not None:
+                inVar.set_data(variable.get_data('input'), name)
             else:
-                # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
+                print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
                 self.add_variable(variable)
                 self.ordering.append(name)
 
