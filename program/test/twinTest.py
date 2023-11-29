@@ -32,7 +32,10 @@ def getScore(config):
 
     scoreList = []
     firstData = True
-    # get score for each model
+    # config of truth model
+    with open(os.path.join("data/modelData", modelName, "truth", "truth.json"), "r") as f:
+        truthConfig = json.load(f)
+    # get scores
     for folder in modelPaths:
         folderPath = os.path.join("data/modelData", modelName, folder)
         if os.path.isdir(folderPath):
@@ -53,14 +56,19 @@ def getScore(config):
                 where to get the score
                 """
                 scores.append(modelConfig.get("timeTaken", 0))
+                scores.append(edgeDetectAccuracy(modelConfig, truthConfig))
                 scores.append(model.evaluate(targetVar, type="log_likelihood"))
                 scores.append(model.evaluate(targetVar, type="BIC"))
+                if folder == "truth":
+                    tryTime = 10
+                else:
+                    tryTime = 1
                 for controlVar in controlVars:
                     for changeRate in changeRates:
-                        scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen))
+                        scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime))
                 
                 # make it dataframe
-                scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "log_likelihood", "BIC"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
+                scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "edgeAccuracy", "log_likelihood", "BIC"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
                 with open(scoreFilePath, 'a') as file:
                     scores.to_csv(file, header=firstData, index=False)
                 firstData = False
@@ -71,7 +79,7 @@ def getScore(config):
 # visualize
 def visualize(modelName, scoreList, criterion="log_likelihood"):
     print("criterion: ", criterion)
-    if criterion in ["log_likelihood", "BIC", "timeTaken"]:
+    if criterion in ["log_likelihood", "BIC", "timeTaken", "edgeAccuracy"]:
         metric = criterion
         scoreList = scoreList[["model", metric]]
 
@@ -138,6 +146,28 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
             plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_{controlVar}.png"))
             plt.close()
 
+# calculate accuracy of edge detection
+def edgeDetectAccuracy(modelConfig, truthConfig):
+    modelVariables = modelConfig.get("variables")
+    truthVariables = truthConfig.get("variables")
+    allVariableNames = list(truthVariables.keys())
+    allPairs = len(allVariableNames) * (len(allVariableNames) - 1)
+
+    correctPairs = 0
+    for child in allVariableNames:
+        for parent in allVariableNames:
+            if child == parent:
+                continue
+            elif (parent in modelVariables[child]["parents"]) & (parent in truthVariables[child]["parents"]):
+                correctPairs += 1
+            elif (parent not in modelVariables[child]["parents"]) & (parent not in truthVariables[child]["parents"]):
+                correctPairs += 1
+            else:
+                continue
+    
+    return correctPairs / allPairs
+
+            
 
 
 if __name__ == "__main__":
@@ -160,4 +190,4 @@ if __name__ == "__main__":
     visualize(config["modelName"], scoreList, criterion="BIC")
     visualize(config["modelName"], scoreList, criterion="elasticity")
     visualize(config["modelName"], scoreList, criterion="timeTaken")
-
+    visualize(config["modelName"], scoreList, criterion="edgeAccuracy")

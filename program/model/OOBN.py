@@ -203,6 +203,31 @@ class ObjectNode(Variable):
             # print("Log Likelihood: ", log_likelihood)
 
         return score
+    
+    def ll_all(self):
+        score = 0
+        
+        for variable in self.variables.values():
+            score += self.ll_sep(variable)
+        
+        return score
+    
+    def ll_sep(self, variable):
+        # when the variable is an object node
+        if isinstance(variable, ObjectNode):
+            # calculate the score for each input variable in the object node
+            score = 0
+            for input_var_name in variable.input:
+                input_variable = variable.variables[input_var_name]
+                score += self.ll_sep(input_variable)
+
+        else:
+            # when the variable is not an object node
+            score = self.calculate_log_likelihood(variable)
+            
+            # print("Log Likelihood: ", score)
+
+        return score
 
     def calculate_log_likelihood(self, variable):
         data = variable.get_data('input')
@@ -539,22 +564,20 @@ class ObjectNode(Variable):
                 self.ordering.append(name)
 
     # Evaluate performance
-    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood", num_samples=1000):
+    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood", num_samples=1000, tryTime=1):
 
         target_variable = self.find_variable(targetVar)
         control_variable = self.find_variable(controlVar) if controlVar else None
 
         if type == "log_likelihood":
-            # check log-likelihood
-            ll = target_variable.log_likelihood()
-            # print("Log Likelihood: ", ll)
-            return ll
+            # sum up log likelihood for every variable
+            return self.ll_all()
         if type == "BIC":
             # sum up BIC score for every variable
             return self.BIC_all()
         elif type == "elasticity":
             if self.reachable(control_variable.name, target_variable.name):
-                return self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples)
+                return np.mean([self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples) for _ in range(tryTime)])
             else:
                 return 0
 
