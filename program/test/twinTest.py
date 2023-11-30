@@ -239,17 +239,21 @@ def edgeDetectAccuracy(modelConfig, truthConfig):
     modelVariables = modelConfig.get("variables")
     truthVariables = truthConfig.get("variables")
     allVariableNames = list(truthVariables.keys())
+    allPairs = len(allVariableNames) * (len(allVariableNames) - 1)
 
-    truePairs = 0
-    detectedPairs = 0
+    correctPairs = 0
     for child in allVariableNames:
         for parent in allVariableNames:
-            if parent in truthVariables[child]["parents"]:
-                truePairs += 1
-                if parent in modelVariables[child]["parents"]:
-                    detectedPairs += 1
+            if child == parent:
+                continue
+            elif (parent in modelVariables[child]["parents"]) & (parent in truthVariables[child]["parents"]):
+                correctPairs += 1
+            elif (parent not in modelVariables[child]["parents"]) & (parent not in truthVariables[child]["parents"]):
+                correctPairs += 1
+            else:
+                continue
     
-    return detectedPairs / truePairs
+    return correctPairs / allPairs
 
             
 
