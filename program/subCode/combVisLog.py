@@ -10,7 +10,7 @@ import numpy as np
 def factorial(n):
     if n == 0:
         return 1
-    return np.log(n) + factorial(n-1)
+    return np.log10(n) + factorial(n-1)
 
 # when variables are distributed evenly to o objects
 def orderWithObjects(n, o):
@@ -23,13 +23,13 @@ def orderWithObjects(n, o):
 
 # when variables are constrained by a < b, (c constraints are introduced)
 def orderWithConstraints(n, c):
-    return factorial(n) - (c*np.log(2))
+    return factorial(n) - (c*np.log10(2))
 
 # functions for possible structure combinations
 def numStructure(n):
     orderNum = factorial(n)
     for i in range(1, n+1):
-        orderNum += i*np.log(2)
+        orderNum += i*np.log10(2)
     return orderNum
 
 def numStructureWithObjects(n, o):
@@ -41,8 +41,8 @@ def numStructureWithObjects(n, o):
 def numStructureWithConstraints(n, c):
     orderNum = orderWithConstraints(n, c)
     for i in range(1, n+1):
-        orderNum += i*np.log(2)
-    return orderNum - (c*np.log(2))
+        orderNum += i*np.log10(2)
+    return orderNum - (c*np.log10(2))
 
 # draw graphs
 def drawOrder(n, o, c):
@@ -62,10 +62,35 @@ def drawOrder(n, o, c):
     print(objs)
     print(consts)
 
-    for i in range(len(objNums)):
-        plt.plot(x, objs[i], label=f"objects={objNums[i]}")
+    for i in range(len(constNums)):
+        plt.plot(x, consts[i], label=f"consts={constNums[i]}")
     plt.plot(x, base, label="base", color="black", linewidth=3)
-    plt.ylabel("log(order combinations)")
+    plt.ylabel("log10(Graph combinations)")
+    plt.legend()
+    plt.show()
+
+# draw graphs
+def drawCombs(n, o, c):
+    # order combinations
+    x = np.arange(1, n+1, 10)
+    objNums = np.arange(2, o+1, 1)
+    constNums = np.arange(1, c+1, 1)
+
+    Vbase = np.vectorize(numStructure)
+    Vobj = np.vectorize(numStructureWithObjects)
+    Vconst = np.vectorize(numStructureWithConstraints)
+
+    base = Vbase(x)
+    objs = [Vobj(x, oi) for oi in objNums]
+    consts = [Vconst(x, ci) for ci in constNums]
+    print(base)
+    print(objs)
+    print(consts)
+
+    for i in range(len(objNums)):
+        plt.plot(x, objs[i], label=f"objs={objNums[i]}")
+    plt.plot(x, base, label="base", color="black", linewidth=3)
+    plt.ylabel("log10(order combinations)")
     plt.legend()
     plt.show()
 
