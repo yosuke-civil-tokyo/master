@@ -78,7 +78,7 @@ def getScore(config):
                     scores.to_csv(file, header=firstData, index=False)
                 firstData = False
 
-    return scoreList
+    return pd.read_csv(scoreFilePath)
 
 
 # visualize
@@ -116,31 +116,9 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
     # plot sum of criterion over variables(plot1), and plot criterion for each variable(plot2)
     elif criterion in ["log_likelihood", "BIC"]:
         LLBIC_columns = [col for col in scoreList.columns if col.endswith(f"_{criterion}")]
-        variables = sorted(list(set('_'.join(col.split('_')[:-1]) for col in LLBIC_columns)))
+        variables = sorted(list(set('_'.join(col.split('_')[:1]) for col in LLBIC_columns)))
 
-        # plot1, same as "timeTaken" and "edgeAccuracy"
         scoreList = scoreList[["model"] + LLBIC_columns]
-        # Separate the true model and other models
-        trueModelScore = scoreList[scoreList["model"] == "truth"][LLBIC_columns].sum(axis=1).values[0]
-        scoreList = scoreList[scoreList["model"] != "truth"]
-        # Aggregate by model type
-        scoreListMean = scoreList.groupby("model").mean().reset_index()
-        scoreListUpper = scoreList.groupby("model").quantile(0.95).reset_index()
-        scoreListLower = scoreList.groupby("model").quantile(0.05).reset_index()
-        # Plotting
-        plt.figure(figsize=(10, 6))
-        plt.plot([0], [trueModelScore], color="red", label="True Model", marker="o", markersize=10)
-        for i, modeltype in enumerate(scoreListMean["model"]):
-            mean_value = scoreListMean[scoreListMean["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
-            upper_value = scoreListUpper[scoreListUpper["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
-            lower_value = scoreListLower[scoreListLower["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
-            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=modeltype, capsize=5)
-        plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
-        plt.ylabel(f"Sum of {criterion} over variables")
-        plt.legend()
-        plt.savefig(os.path.join("data/modelData", modelName, f"sum_{criterion}.png"))
-        plt.close()
-
         # plot2, plot criterion for each variable in one plot
         # ranged plot like "elasticity"
         # variables are x-axis, criterion are y-axis, same modeltype are merged and calculated mean and quantile
@@ -163,6 +141,29 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         plt.grid(True)
         plt.savefig(os.path.join("data/modelData", modelName, f"{criterion}.png"))
         plt.close()
+
+        # plot1, same as "timeTaken" and "edgeAccuracy"
+        # Separate the true model and other models
+        trueModelScore = scoreList[scoreList["model"] == "truth"][LLBIC_columns].sum(axis=1).values[0]
+        scoreList = scoreList[scoreList["model"] != "truth"]
+        # Aggregate by model type
+        scoreListMean = scoreList.groupby("model").mean().reset_index()
+        scoreListUpper = scoreList.groupby("model").quantile(0.95).reset_index()
+        scoreListLower = scoreList.groupby("model").quantile(0.05).reset_index()
+        # Plotting
+        plt.figure(figsize=(10, 6))
+        plt.plot([0], [trueModelScore], color="red", label="True Model", marker="o", markersize=10)
+        for i, modeltype in enumerate(scoreListMean["model"]):
+            mean_value = scoreListMean[scoreListMean["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
+            upper_value = scoreListUpper[scoreListUpper["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
+            lower_value = scoreListLower[scoreListLower["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
+            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=modeltype, capsize=5)
+        plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
+        plt.ylabel(f"Sum of {criterion} over variables")
+        plt.legend()
+        plt.savefig(os.path.join("data/modelData", modelName, f"sum_{criterion}.png"))
+        plt.close()
+
 
     elif criterion == "elasticity":
         # Filter for elasticity columns
