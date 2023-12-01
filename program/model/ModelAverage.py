@@ -18,15 +18,15 @@ def thresAverage(configs, beta=0.7):
     countTable = countTable > beta
     aveConfig = configs[0]
     aveConfig = setArcs(aveConfig, countTable, variableNames)
-    return aveConfig
+    return [aveConfig]
 
 def bestChoice(configs):
     scores = [config.get("score") for config in configs]
     bestIndex = scores.index(max(scores))
-    return configs[bestIndex]
+    return [configs[bestIndex]]
 
 def deepAverage(configs, num_samples=100, sample_per_model=10):
-    model = deepGenerativeModel()
+    model = DeepGenerativeModel()
     model.train(configs)
     samples = model.sample(num_samples//sample_per_model)
     aveConfig = configs[0]
