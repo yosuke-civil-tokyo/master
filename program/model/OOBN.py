@@ -550,9 +550,9 @@ class ObjectNode(Variable):
 
         return None
     
-    def generate_random_cpt(self):
+    def set_random_cpt(self):
         for var in self.variables.values():
-            var.generate_random_cpt()
+            var.set_random_cpt()
 
     # Setting data to each variable
     def set_data_from_dataloader(self, dataloader, dataRange=None, column_list=None):
