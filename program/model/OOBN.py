@@ -85,7 +85,6 @@ class ObjectNode(Variable):
     
         initial_ordering = [k for k in self.variables.keys() if k not in fixed_positions.values()]
         random.shuffle(initial_ordering)
-        print(initial_ordering)
 
         # Apply fixed positions if provided
         current_ordering = [None for _ in range(len(self.variables))]
@@ -99,8 +98,6 @@ class ObjectNode(Variable):
         best_score = float('-inf')
         improvement = True
         swap_pairs = [[i, i+1] for i in range(len(current_ordering) - 1) if not {i, i+1} & set(fixed_positions.keys())]
-        print(swap_pairs)
-        print(current_ordering)
         
         # search for the best ordering, until no improvement is found by swapping
         with ProcessPoolExecutor() as executor:
@@ -201,6 +198,31 @@ class ObjectNode(Variable):
             
             # print("CPT size: ", k)
             # print("Log Likelihood: ", log_likelihood)
+
+        return score
+    
+    def ll_all(self):
+        score = 0
+        
+        for variable in self.variables.values():
+            score += self.ll_sep(variable)
+        
+        return score
+    
+    def ll_sep(self, variable):
+        # when the variable is an object node
+        if isinstance(variable, ObjectNode):
+            # calculate the score for each input variable in the object node
+            score = 0
+            for input_var_name in variable.input:
+                input_variable = variable.variables[input_var_name]
+                score += self.ll_sep(input_variable)
+
+        else:
+            # when the variable is not an object node
+            score = self.calculate_log_likelihood(variable)
+            
+            # print("Log Likelihood: ", score)
 
         return score
 
@@ -530,30 +552,29 @@ class ObjectNode(Variable):
             column_list = list(self.variables.keys())
         variables = dataloader.get_data(column_list)
         for name, variable in variables.items():
-            if name in self.variables:
-                self.variables[name].set_data(variable.get_data('input'), name)
+            inVar = self.find_variable(name)
+            if inVar is not None:
+                inVar.set_data(variable.get_data('input'), name)
             else:
                 # print(f"Warning: Variable {name} not found in ObjectNode {self.name}. Creating new variable.")
                 self.add_variable(variable)
                 self.ordering.append(name)
 
     # Evaluate performance
-    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood", num_samples=1000):
+    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood", num_samples=1000, tryTime=1):
 
         target_variable = self.find_variable(targetVar)
         control_variable = self.find_variable(controlVar) if controlVar else None
 
         if type == "log_likelihood":
-            # check log-likelihood
-            ll = target_variable.log_likelihood()
-            # print("Log Likelihood: ", ll)
-            return ll
+            # sum up log likelihood for every variable
+            return self.ll_all()
         if type == "BIC":
             # sum up BIC score for every variable
             return self.BIC_all()
         elif type == "elasticity":
             if self.reachable(control_variable.name, target_variable.name):
-                return self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples)
+                return np.mean([self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples) for _ in range(tryTime)])
             else:
                 return 0
 
