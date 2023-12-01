@@ -59,7 +59,7 @@ def getScore(config):
                 scores.append(edgeDetectAccuracy(modelConfig, truthConfig))
                 # add loglikelihood and BIC for every variable
                 LLBICcol = []
-                for variable in modelConfig.get("variables").keys():
+                for variable in truthConfig.get("variables").keys():
                     LLBICcol.append(variable+"_log_likelihood")
                     LLBICcol.append(variable+"_BIC")
                     scores.append(calculate_log_likelihood(model.find_variable(variable)))
