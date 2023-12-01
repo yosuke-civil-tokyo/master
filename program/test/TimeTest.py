@@ -13,7 +13,7 @@ from model.OOBN import ObjectNode
 from model.BN import Variable
 
 # example test case
-def exTest(config):
+def exTest(config, CaseName=""):
     case_name = config.get("case_name")
     data_files = config.get("data_files")
     convert_dict = config.get("convert_dict")
@@ -105,9 +105,9 @@ def exTest(config):
 
 
         # save the model
-        if not os.path.exists(os.path.join("data", "modelData", case_name, structure_opt)):
-            os.makedirs(os.path.join("data", "modelData", case_name, structure_opt))
-        objects.get("obj1").save_model_parameters(os.path.join(case_name, structure_opt, str(flag)))
+        if not os.path.exists(os.path.join("data", "modelData", case_name, CaseName+structure_opt)):
+            os.makedirs(os.path.join("data", "modelData", case_name, CaseName+structure_opt))
+        objects.get("obj1").save_model_parameters(os.path.join(case_name, CaseName+structure_opt, str(flag)))
         flag += 1
 
 
@@ -128,4 +128,4 @@ if __name__ == "__main__":
     config = Configs[args.CaseName]
     config["structure_opt"] = args.StructureOpt
 
-    exTest(config)
+    exTest(config, CaseName=args.CaseName)
