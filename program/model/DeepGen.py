@@ -60,8 +60,8 @@ class DeepGenerativeModel(nn.Module):
                 print('Epoch {}: Loss: {:.3f}'.format(epoch+1, total_loss / len(data_loader)))
     
 
-def createAdjacencyMatrix(config):
-    variables = config["variables"]
+def createAdjacencyMatrix(config, truthConfig):
+    variables = truthConfig["variables"]
     num_vars = len(variables)
     adjacency_matrix = torch.zeros((num_vars, num_vars))
 
@@ -72,7 +72,7 @@ def createAdjacencyMatrix(config):
 
     return adjacency_matrix
 
-def createTensorsFromConfigs(folder):
+def createTensorsFromConfigs(folder, truthConfig):
     print("Loading configs from: ", folder)
     configs = []
     for modelNum in os.listdir(folder):
@@ -85,16 +85,17 @@ def createTensorsFromConfigs(folder):
             continue
         configs.append(config)
 
-    adjacency_matrices = [createAdjacencyMatrix(config) for config in configs]
+    adjacency_matrices = [createAdjacencyMatrix(config, truthConfig) for config in configs]
     adjacency_matrices = torch.stack(adjacency_matrices)
     return adjacency_matrices
 
 if __name__ == "__main__":
-    folder = "data/modelData/model2/structure_optimization/"
-    adjacency_matrices = createTensorsFromConfigs(folder)
+    folder = "data/modelData/model2/model2-objstructure_optimization/"
+    with open("data/modelData/model2/truth/truth.json", "r") as f:
+        truthConfig = json.load(f)
+    adjacency_matrices = createTensorsFromConfigs(folder, truthConfig=truthConfig)
     data_loader = torch.utils.data.DataLoader(adjacency_matrices, batch_size=4, shuffle=True)
     model = DeepGenerativeModel(z_dim=33)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    print(model)
     model.train(data_loader=data_loader, optimizer=optimizer, epochs=1000)
     torch.save(model.state_dict(), os.path.join(folder, "model.pt"))
