@@ -119,7 +119,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
                 for changeRate in changeRates:
                     col_name = f"elasticity_{controlVar}_{changeRate}"
                     elasticity_values = model_data[col_name].dropna()
-                    elasticity_values = elasticity_values[elasticity_values != 0]
+                    # elasticity_values = elasticity_values[elasticity_values != 0]
                     mean_value = elasticity_values.mean()
                     upper_value = elasticity_values.quantile(0.95)
                     lower_value = elasticity_values.quantile(0.05)

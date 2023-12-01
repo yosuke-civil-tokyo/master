@@ -34,6 +34,9 @@ def getScore(config):
 
     scoreList = []
     firstData = True
+
+    with open(os.path.join("data/modelData", modelName, "truth", "truth.json"), "r") as f:
+        truthConfig = json.load(f)
     # get score for each model
     for folder in modelPaths:
         folderPath = os.path.join("data/modelData", modelName, folder)
@@ -65,11 +68,43 @@ def getScore(config):
         # get one score for the group of Configs
         # merge multiple result to get one score
         score = [folder, calTime]
-        # BIC, log_likelihood, 
+        aveScore = []
+        # BIC, log_likelihood, elasticity
+        i = 0
+        for aveConfig in aveConfigs:
+            dataRange = (i*dataLen//len(aveConfigs), (i+1)*dataLen//len(aveConfigs))
+            eachScore = []
+            model = BuildModelFromConfig(aveConfig)
+            model.set_data_from_dataloader(dl, dataRange=dataRange)
 
+            # scores
+            eachScores.append(edgeDetectAccuracy(modelConfig, truthConfig))
+            # add loglikelihood and BIC for every variable
+            LLBICcol = []
+            for variable in truthConfig.get("variables").keys():
+                LLBICcol.append(variable+"_log_likelihood")
+                LLBICcol.append(variable+"_BIC")
+                eachScores.append(calculate_log_likelihood(model.find_variable(variable)))
+                eachScores.append(calculate_BIC(model.find_variable(variable)))
+            if folder == "truth":
+                tryTime = 10
+            else:
+                tryTime = 1
+            for controlVar in controlVars:
+                for changeRate in changeRates:
+                    eachScores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime))
+            i += 1
+            aveScore.append(eachScores)
+        aveScore = np.array(aveScore)
+        score.append(np.mean(aveScore, axis=0))
 
+        # make it dataframe
+        score = pd.DataFrame(np.array([score]), columns=["model", "timeTaken", "log_likelihood", "BIC"]+["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
+        with open(scoreFilePath, 'a') as file:
+            score.to_csv(file, header=firstData, index=False)
+        firstData = False
 
-    return scoreList
+    return pd.read_csv(scoreFilePath)
 
 
 # visualize

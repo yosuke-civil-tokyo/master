@@ -533,10 +533,10 @@ class ObjectNode(Variable):
             var.generate_random_cpt()
 
     # Setting data to each variable
-    def set_data_from_dataloader(self, dataloader, column_list=None):
+    def set_data_from_dataloader(self, dataloader, dataRange=None, column_list=None):
         if column_list == None:
             column_list = list(self.variables.keys())
-        variables = dataloader.get_data(column_list)
+        variables = dataloader.get_data(column_list, dataRange=dataRange)
         for name, variable in variables.items():
             if name in self.variables:
                 self.variables[name].set_data(variable.get_data('input'), name)
