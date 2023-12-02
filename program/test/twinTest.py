@@ -142,6 +142,37 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         plt.savefig(os.path.join("data/modelData", modelName, f"{criterion}.png"))
         plt.close()
 
+        # Individual plots for each model
+        true_model_data = scoreList[scoreList["model"] == "truth"]
+        true_mean_value = []
+        for variable in variables:
+            true_mean_value.append(true_model_data[f"{variable}_{criterion}"].mean())
+        for modeltype in scoreList["model"].unique():
+            if modeltype == "truth":
+                continue  # Skip the true model here
+
+            plt.figure(figsize=(10, 6))
+            # Plot data for the true model
+            plt.plot(variables, true_mean_value, color="red", label="True Model", marker="o", markersize=10)
+
+            model_data = scoreList[scoreList["model"] == modeltype]
+            plot_data = []
+            for variable in variables:
+                variable_values = model_data[f"{variable}_{criterion}"].dropna()
+                mean_value = model_data[f"{variable}_{criterion}"].mean()
+                upper_value = model_data[f"{variable}_{criterion}"].quantile(0.95)
+                lower_value = model_data[f"{variable}_{criterion}"].quantile(0.05)
+                plot_data.append((variable, mean_value, lower_value, upper_value))
+            x, means, lowers, uppers = zip(*plot_data)
+            plt.plot(x, means, label=f'{modeltype} Mean {criterion}', marker='o')
+            plt.fill_between(x, lowers, uppers, alpha=0.2, label=f'{modeltype} 0.05-0.95 Quantile Range')
+            plt.xlabel('Variable')
+            plt.ylabel(criterion)
+            plt.title(f'{modeltype} - {criterion}')
+            plt.legend()
+            plt.savefig(os.path.join("data/modelData", modelName, f"{criterion}_{modeltype}.png"))
+            plt.close()
+
         # plot1, same as "timeTaken" and "edgeAccuracy"
         # Separate the true model and other models
         trueModelScore = scoreList[scoreList["model"] == "truth"][LLBIC_columns].sum(axis=1).values[0]
@@ -170,6 +201,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         elasticity_columns = [col for col in scoreList.columns if col.startswith("elasticity_")]
         controlVars = set('_'.join(col.split('_')[1:-1]) for col in elasticity_columns)
         changeRates = sorted(list(set(float(col.split('_')[-1]) for col in elasticity_columns)))
+        true_model_data = scoreList[scoreList["model"] == "truth"]
 
         for controlVar in controlVars:
             plt.figure(figsize=(10, 6))
@@ -202,6 +234,51 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
             plt.grid(True)
             plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_{controlVar}.png"))
             plt.close()
+
+            # Individual plots for each model
+            true_mean_values = [true_model_data[f"elasticity_{controlVar}_{changeRate}"].mean() for changeRate in changeRates]
+            for model in scoreList["model"].unique():
+                plt.figure(figsize=(10, 6))
+                model_data = scoreList[scoreList["model"] == model]
+
+                # Prepare data for plotting for each model
+                plot_data = []
+                for changeRate in changeRates:
+                    col_name = f"elasticity_{controlVar}_{changeRate}"
+                    elasticity_values = model_data[col_name].dropna()
+                    # elasticity_values = elasticity_values[elasticity_values != 0]
+                    mean_value = elasticity_values.mean()
+                    upper_value = elasticity_values.quantile(0.95)
+                    lower_value = elasticity_values.quantile(0.05)
+                    plot_data.append((changeRate, mean_value, lower_value, upper_value))
+
+                x, means, lowers, uppers = zip(*plot_data)
+                plt.plot(x, means, label=f'{model} Mean Elasticity', marker='o')
+                plt.plot(changeRates, true_mean_values, color="red", label="True Model", marker="o", markersize=10)
+                plt.fill_between(x, lowers, uppers, alpha=0.2)
+
+                plt.xlabel('Change Rate')
+                plt.ylabel('Elasticity')
+                plt.title(f'Elasticity of {controlVar} for {model}')
+                plt.legend()
+                plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_{controlVar}_{model}.png"))
+                plt.close()
+
+        specific_change_rate = 0.05  # Example, set this to your desired changeRate
+        plt.figure(figsize=(10, 6))
+        plot_data = []
+        for model in scoreList["model"].unique():
+            model_data = scoreList[scoreList["model"] == model]
+            mean_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].mean() for controlVar in controlVars]
+            upper_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].quantile(0.95) for controlVar in controlVars]
+            lower_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].quantile(0.05) for controlVar in controlVars]
+            plt.plot(list(controlVars), mean_values, label=f'{model} Elasticity at Change Rate {specific_change_rate}', marker='o')
+        plt.xlabel('Variable')
+        plt.ylabel(f'Elasticity at Change Rate {specific_change_rate}')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_specific_{specific_change_rate}.png"))
+        plt.close()
 
 def calculate_log_likelihood(variable):
     data = variable.get_data('input')
