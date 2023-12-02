@@ -31,10 +31,10 @@ def main():
 
     print("Estimation starts...")
     fixed_positions = {"Age": 0, "Purpose":1}
-    obj1.structure_optimization(fixed_positions)
+    obj1.order_optimization(fixed_positions)
 
     fixed_positions = {"WalkTime":0, "Mode":4}
-    obj2.structure_optimization(fixed_positions)
+    obj2.order_optimization(fixed_positions)
 
     # Display the optimized structure
     print("Visualizing structure...")

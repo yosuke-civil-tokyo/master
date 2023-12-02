@@ -90,7 +90,7 @@ def createTensorsFromConfigs(folder, truthConfig):
     return adjacency_matrices
 
 if __name__ == "__main__":
-    folder = "data/modelData/model2/model2-objstructure_optimization/"
+    folder = "data/modelData/model2/model2-objorder_optimization/"
     with open("data/modelData/model2/truth/truth.json", "r") as f:
         truthConfig = json.load(f)
     adjacency_matrices = createTensorsFromConfigs(folder, truthConfig=truthConfig)

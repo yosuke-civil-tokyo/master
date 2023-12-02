@@ -64,8 +64,8 @@ def exTest(config, CaseName=""):
         for obj_conf in object_configs:
             fixed_positions = {k: v for k, v in obj_conf["fix"].items()}
             print(f"Structure optimization for {obj_conf['name']}...")
-            if structure_opt == "structure_optimization":
-                objects[obj_conf['name']].structure_optimization(fixed_positions)
+            if structure_opt == "order_optimization":
+                objects[obj_conf['name']].order_optimization(fixed_positions)
             elif structure_opt == "greedy_structure_learning":
                 objects[obj_conf['name']].greedy_structure_learning()
             elif structure_opt == "tabu_structure_learning":

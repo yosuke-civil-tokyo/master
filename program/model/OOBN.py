@@ -78,7 +78,7 @@ class ObjectNode(Variable):
         self.variables[variable.name] = variable
         variable.object_node = self
 
-    def structure_optimization(self, fixed_positions=None):
+    def order_optimization(self, fixed_positions=None):
         startTime = time.time()
         # check if any variable has to be fixed
         if fixed_positions is None:
@@ -717,7 +717,7 @@ if __name__=="__main__":
     print("Estimation starts")
 
     fixed_positions = {'D': 0, 'C': 3}
-    engine.structure_optimization(fixed_positions=fixed_positions)
+    engine.order_optimization(fixed_positions=fixed_positions)
 
     # Display the optimized structure
     for var_name, variable in engine.variables.items():

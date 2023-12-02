@@ -19,7 +19,7 @@ def main():
 
     print("Estimation starts...")
     fixed_positions = {"Mode": 8}
-    object_node.structure_optimization(fixed_positions)
+    object_node.order_optimization(fixed_positions)
 
     # Display the optimized structure
     print("Visualizing structure...")
