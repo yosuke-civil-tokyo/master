@@ -2,5 +2,6 @@
     "modelName": "model2",
     "targetVar": "trip1",
     "controlVars": ["license", "income", "employed", "education"],
-    "changeRates": [0.001, 0.01, 0.05, 0.1, 0.2]
+    "changeRates": [0.001, 0.01, 0.05, 0.1, 0.2],
+    "averageMethod": "thres"
 }

@@ -94,11 +94,13 @@ class DataLoader:
     def fill_data(self, df, column_list):
         return df[column_list].fillna(0)
         
-    def to_variable(self, column_list):
+    def to_variable(self, column_list, dataRange=None):
+        if dataRange is None:
+            dataRange = (0, len(self.pt_data))
         variables = {}
         for column_name in column_list:
             if column_name in self.pt_data.columns:
-                data_array = self.pt_data[column_name].to_numpy()
+                data_array = self.pt_data[column_name].iloc[dataRange[0]:dataRange[1]].to_numpy()
                 variable = Variable(column_name, states=int(np.max(data_array) + 1))
                 variable.set_data(data_array)
                 variables[column_name] = variable
@@ -106,8 +108,8 @@ class DataLoader:
                 print(f"Warning: Column {column_name} not found in data.")
         return variables
 
-    def get_data(self, column_list):
-        return self.to_variable(column_list)
+    def get_data(self, column_list, dataRange=None):
+        return self.to_variable(column_list, dataRange)
     
     # make a table combining pt_data and los_data
     def make_los_table(self):

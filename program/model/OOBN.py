@@ -28,6 +28,7 @@ class ObjectNode(Variable):
         self.output_states = self.states
         self.ordering = []
         self.calc_time = 0
+        self.score = 0
     
     def set_data(self, data_array, variable_name=None, data_type='input'):
         if data_type == 'input':
@@ -115,6 +116,7 @@ class ObjectNode(Variable):
         final_score = self.BIC_all()
         print("Final Score : ", final_score)
         self.calc_time = time.time() - startTime
+        self.score = final_score
 
     def evaluate_swap(self, pair, ordering):
         ordering = ordering.copy()
@@ -356,7 +358,10 @@ class ObjectNode(Variable):
                 improvement = True
             iteration += 1
         print(iteration)
+        final_score = self.BIC_all()
+        print("Final Score : ", final_score)
         self.calc_time = time.time() - start_time
+        self.score = final_score
 
     def tabu_structure_learning(self, tabu_length=10, max_iterations=10000):
         start_time = time.time()
@@ -393,7 +398,10 @@ class ObjectNode(Variable):
 
             iteration += 1
         print(iteration)
+        final_score = self.BIC_all()
+        print("Final Score : ", final_score)
         self.calc_time = time.time() - start_time
+        self.score = final_score
 
     # functions used in structure learning
     def get_reverse_operation(self, operation):
@@ -542,15 +550,15 @@ class ObjectNode(Variable):
 
         return None
     
-    def generate_random_cpt(self):
+    def set_random_cpt(self):
         for var in self.variables.values():
-            var.generate_random_cpt()
+            var.set_random_cpt()
 
     # Setting data to each variable
-    def set_data_from_dataloader(self, dataloader, column_list=None):
+    def set_data_from_dataloader(self, dataloader, dataRange=None, column_list=None):
         if column_list == None:
             column_list = list(self.variables.keys())
-        variables = dataloader.get_data(column_list)
+        variables = dataloader.get_data(column_list, dataRange=dataRange)
         for name, variable in variables.items():
             inVar = self.find_variable(name)
             if inVar is not None:
@@ -634,8 +642,8 @@ class ObjectNode(Variable):
 
     def _extract_model_params(self, model_params=None):
         if model_params is None:
-            model_params = {"variables": {}, "objects": {}}
-        model_params["timeTaken"] = self.calc_time
+            model_params = {"variables": {}, "objects": {}, "score": self.score, "timeTaken": 0}
+        model_params["timeTaken"] += self.calc_time
         model_params["objects"][self.name] = {}
         model_params["objects"][self.name]["variables"] = []
         model_params["objects"][self.name]["in_obj"] = []

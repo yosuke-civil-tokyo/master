@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from model.BuildModel import BuildModelFromConfig
+from model.ModelAverage import thresAverage, bestChoice, deepAverage
 from dl.DataLoader import make_dataloader
 
 # get score
@@ -17,6 +18,7 @@ def getScore(config):
     targetVar = config["targetVar"]
     controlVars = config["controlVars"]
     changeRates = config["changeRates"]
+    averageMethod = config["averageMethod"]
 
     # data
     dl = make_dataloader(None, None, None, None, modelName)
@@ -26,63 +28,92 @@ def getScore(config):
 
     # list model configs
     modelPaths = os.listdir(os.path.join("data/modelData", modelName))
-    scoreFilePath = os.path.join("data/modelData", modelName, "score.csv")
-    if "score.csv" in modelPaths:
+    scoreFilePath = os.path.join("data/modelData", modelName, "scoreAve.csv")
+    if "scoreAve.csv" in modelPaths:
         return pd.read_csv(scoreFilePath)
 
     scoreList = []
     firstData = True
-    # config of truth model
+
     with open(os.path.join("data/modelData", modelName, "truth", "truth.json"), "r") as f:
         truthConfig = json.load(f)
-    # get scores
+    # get score for each model
     for folder in modelPaths:
         folderPath = os.path.join("data/modelData", modelName, folder)
         if os.path.isdir(folderPath):
             models = os.listdir(folderPath)
-            for modelNum in models:
-                modelPath = os.path.join(folderPath, modelNum)
-                print(modelPath)
-                scores = [folder]
-                try:
-                    with open(modelPath, "r") as f:
-                        modelConfig = json.load(f)
-                except:
-                    print("error in loading: ", modelPath)
-                    continue
-                model = BuildModelFromConfig(modelConfig)
-                model.set_data_from_dataloader(dl, column_list=list(modelConfig.get("variables").keys()))
-                """
-                where to get the score
-                """
-                scores.append(modelConfig.get("timeTaken", 0))
-                scores.append(edgeDetectAccuracy(modelConfig, truthConfig))
-                # add loglikelihood and BIC for every variable
-                LLBICcol = []
-                for variable in truthConfig.get("variables").keys():
-                    LLBICcol.append(variable+"_log_likelihood")
-                    LLBICcol.append(variable+"_BIC")
-                    scores.append(calculate_log_likelihood(model.find_variable(variable)))
-                    scores.append(calculate_BIC(model.find_variable(variable)))
-                if folder == "truth":
-                    tryTime = 3
-                else:
-                    tryTime = 1
-                for controlVar in controlVars:
-                    for changeRate in changeRates:
-                        scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime))
-                
-                # make it dataframe
-                scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "edgeAccuracy"]+ LLBICcol +["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
-                with open(scoreFilePath, 'a') as file:
-                    scores.to_csv(file, header=firstData, index=False)
-                firstData = False
+            print(folder)
+        else:
+            continue
+        # read models
+        modelConfigs = []
+        for modelNum in models:
+            modelPath = os.path.join(folderPath, modelNum)
+            try:
+                with open(modelPath, "r") as f:
+                    modelConfig = json.load(f)
+                    
+            except:
+                print("error in loading: ", modelPath)
+                continue
+            modelConfigs.append(modelConfig)
+        # average
+        if averageMethod == "thres":
+            aveConfigs, calTime = thresAverage(modelConfigs, truthConfig=truthConfig)
+        elif averageMethod == "best":
+            aveConfigs, calTime = bestChoice(modelConfigs, truthConfig=truthConfig)
+        elif averageMethod == "deep":
+            aveConfigs, calTime = deepAverage(modelConfigs, num_samples=dataLen, sample_per_model=10, modelName=folder, truthConfig=truthConfig)
+        else:
+            print("average method not found")
+            return
+        
+        # get one score for the group of Configs
+        # merge multiple result to get one score
+        score = [folder, calTime]
+        aveScore = []
+        # BIC, log_likelihood, elasticity
+        i = 0
+        for aveConfig in aveConfigs:
+            dataRange = (i*dataLen//len(aveConfigs), (i+1)*dataLen//len(aveConfigs))
+            eachScore = []
+            model = BuildModelFromConfig(aveConfig)
+            model.set_random_cpt()
+            model.set_data_from_dataloader(dl, dataRange=dataRange)
+
+            # scores
+            eachScore.append(edgeDetectAccuracy(modelConfig, truthConfig))
+            # add loglikelihood and BIC for every variable
+            LLBICcol = []
+            for variable in truthConfig.get("variables").keys():
+                LLBICcol.append(variable+"_log_likelihood")
+                LLBICcol.append(variable+"_BIC")
+                eachScore.append(calculate_log_likelihood(model.find_variable(variable)))
+                eachScore.append(calculate_BIC(model.find_variable(variable)))
+            if folder == "truth":
+                tryTime = 3
+            else:
+                tryTime = 1
+            for controlVar in controlVars:
+                for changeRate in changeRates:
+                    eachScore.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime))
+            i += 1
+            aveScore.append(eachScore)
+        aveScore = np.array(aveScore).mean(axis=0)
+        for s in aveScore:
+            score.append(s)
+
+        # make it dataframe
+        score = pd.DataFrame(np.array([score]), columns=["model", "timeTaken", "edgeAccuracy"]+ LLBICcol +["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
+        with open(scoreFilePath, 'a') as file:
+            score.to_csv(file, header=firstData, index=False)
+        firstData = False
 
     return pd.read_csv(scoreFilePath)
 
 
 # visualize
-def visualize(modelName, scoreList, criterion="log_likelihood"):
+def visualize(modelName, scoreList, criterion="log_likelihood", average="thres"):
     print("criterion: ", criterion)
     if criterion in ["timeTaken", "edgeAccuracy"]:
         metric = criterion
@@ -110,7 +141,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
         plt.ylabel(metric)
         plt.legend()
-        plt.savefig(os.path.join("data/modelData", modelName, f"{metric}.png"))
+        plt.savefig(os.path.join("data/modelData", modelName, f"{metric}_{average}.png"))
         plt.close()
 
     # plot sum of criterion over variables(plot1), and plot criterion for each variable(plot2)
@@ -139,7 +170,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         plt.ylabel(criterion)
         plt.legend()
         plt.grid(True)
-        plt.savefig(os.path.join("data/modelData", modelName, f"{criterion}.png"))
+        plt.savefig(os.path.join("data/modelData", modelName, f"{criterion}_{average}.png"))
         plt.close()
 
         # plot1, same as "timeTaken" and "edgeAccuracy"
@@ -161,7 +192,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
         plt.ylabel(f"Sum of {criterion} over variables")
         plt.legend()
-        plt.savefig(os.path.join("data/modelData", modelName, f"sum_{criterion}.png"))
+        plt.savefig(os.path.join("data/modelData", modelName, f"sum_{criterion}_{average}.png"))
         plt.close()
 
 
@@ -200,7 +231,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
             plt.title(f'Elasticity of {controlVar} on {modelName}')
             plt.legend()
             plt.grid(True)
-            plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_{controlVar}.png"))
+            plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_{controlVar}_{average}.png"))
             plt.close()
 
 def calculate_log_likelihood(variable):
@@ -255,8 +286,6 @@ def edgeDetectAccuracy(modelConfig, truthConfig):
     
     return correctPairs / allPairs
 
-            
-
 
 if __name__ == "__main__":
     # read config with argparse
@@ -274,8 +303,8 @@ if __name__ == "__main__":
     # get score
     scoreList = getScore(config)
     # visualize
-    visualize(config["modelName"], scoreList, criterion="log_likelihood")
-    visualize(config["modelName"], scoreList, criterion="BIC")
-    visualize(config["modelName"], scoreList, criterion="elasticity")
-    visualize(config["modelName"], scoreList, criterion="timeTaken")
-    visualize(config["modelName"], scoreList, criterion="edgeAccuracy")
+    visualize(config["modelName"], scoreList, criterion="log_likelihood", average=config["averageMethod"])
+    visualize(config["modelName"], scoreList, criterion="BIC", average=config["averageMethod"])
+    visualize(config["modelName"], scoreList, criterion="elasticity", average=config["averageMethod"])
+    visualize(config["modelName"], scoreList, criterion="timeTaken", average=config["averageMethod"])
+
