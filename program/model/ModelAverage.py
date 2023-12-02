@@ -1,7 +1,9 @@
+import os
 import time
 import numpy as np
 
 from model.DeepGen import DeepGenerativeModel
+import torch
 
 # average function for structure
 # the one calculate each arc's reliability 
@@ -41,15 +43,18 @@ def bestChoice(configs, truthConfig=None):
 
     return [aveConfig], time.time()-startTime
 
-def deepAverage(configs, num_samples=100, sample_per_model=10, truthConfig=None):
+def deepAverage(folder_path, num_samples=100, sample_per_model=10, truthConfig=None):
     startTime = time.time()
-    model = DeepGenerativeModel()
-    model.train(configs)
-    model_samples = model.sample(num_samples//sample_per_model)
-    varaibleNames = list(truthConfig.get("variables").keys())
+    model_path = os.path.join(folder_path, "model.pt")
+    model = DeepGenerativeModel(z_dim=33)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    sampled_matrices = model.sample(num_samples//sample_per_model)
+    sampled_matrices_np = sampled_matrices.cpu().numpy()
+    variableNames = list(truthConfig.get("variables").keys())
     configs = []
-    for i in range(len(model_samples)):
-        configs.append(setArcs(truthConfig, model_samples[i], varaibleNames))
+    for i in range(len(sampled_matrices_np)):
+        configs.append(setArcs(truthConfig, sampled_matrices_np[i], variableNames))
 
     return configs, time.time()-startTime
 

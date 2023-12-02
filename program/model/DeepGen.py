@@ -58,6 +58,14 @@ class DeepGenerativeModel(nn.Module):
                 optimizer.step()
             if epoch % 50 == 0:
                 print('Epoch {}: Loss: {:.3f}'.format(epoch+1, total_loss / len(data_loader)))
+
+    def sample(self, num_samples):
+        with torch.no_grad():
+            # Sample from the latent space
+            z = torch.randn(num_samples, self.z_dim)
+            # Generate data by passing samples through the decoder
+            generated = self._decoder(z)
+        return generated
     
 
 def createAdjacencyMatrix(config, truthConfig):
