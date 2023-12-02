@@ -6,7 +6,7 @@ from model.DeepGen import DeepGenerativeModel
 # average function for structure
 # the one calculate each arc's reliability 
 # and add to the model if it is higher than threshold
-def thresAverage(configs, beta=0.7, truthConfig=None):
+def thresAverage(configs, beta=0.5, truthConfig=None):
     startTime = time.time()
     variableNames = list(truthConfig.get("variables").keys())
     variableNums = {variableNames[i]: i for i in range(len(variableNames))}
@@ -39,7 +39,7 @@ def bestChoice(configs, truthConfig=None):
             countTable[variableNums[child], variableNums[parent]] += 1
     aveConfig = setArcs(truthConfig, countTable, variableNames)
 
-    return ave, time.time()-startTime
+    return [aveConfig], time.time()-startTime
 
 def deepAverage(configs, num_samples=100, sample_per_model=10, truthConfig=None):
     startTime = time.time()

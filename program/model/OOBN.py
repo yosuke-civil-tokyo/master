@@ -642,8 +642,8 @@ class ObjectNode(Variable):
 
     def _extract_model_params(self, model_params=None):
         if model_params is None:
-            model_params = {"variables": {}, "objects": {}, "score": self.score}
-        model_params["timeTaken"] = self.calc_time
+            model_params = {"variables": {}, "objects": {}, "score": self.score, "timeTaken": 0}
+        model_params["timeTaken"] += self.calc_time
         model_params["objects"][self.name] = {}
         model_params["objects"][self.name]["variables"] = []
         model_params["objects"][self.name]["in_obj"] = []
