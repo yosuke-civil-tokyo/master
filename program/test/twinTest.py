@@ -65,7 +65,7 @@ def getScore(config):
                     scores.append(calculate_log_likelihood(model.find_variable(variable)))
                     scores.append(calculate_BIC(model.find_variable(variable)))
                 if folder == "truth":
-                    tryTime = 10
+                    tryTime = 3
                 else:
                     tryTime = 1
                 for controlVar in controlVars:
