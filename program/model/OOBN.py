@@ -555,7 +555,7 @@ class ObjectNode(Variable):
             var.set_random_cpt()
 
     # Setting data to each variable
-    def set_data_from_dataloader(self, dataloader, dataRange=None, column_list=None):
+    def set_data_from_dataloader(self, dataloader, column_list=None, dataRange=None):
         if column_list == None:
             column_list = list(self.variables.keys())
         variables = dataloader.get_data(column_list, dataRange=dataRange)
