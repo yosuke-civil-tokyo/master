@@ -13,6 +13,9 @@ from model.ModelAverage import thresAverage, bestChoice, deepAverage
 from model.DeepGen import DeepGenerativeModel
 from dl.DataLoader import make_dataloader
 
+color_dict = {"truth": "black", "model2-objorder_optimization": "red", "model2-normalorder_optimization": "blue", "model2-normalgreedy_structure_learning": "dodgerblue", "model2-normaltabu_structure_learning": "lightskyblue"}
+model_rename_dict = {"truth": "Truth", "model2-objorder_optimization": "Proposed", "model2-normalorder_optimization": "Order Opt", "model2-normalgreedy_structure_learning": "Greedy", "model2-normaltabu_structure_learning": "Tabu"}
+
 # get score
 def getScore(config):
     modelName = config["modelName"]
@@ -139,13 +142,13 @@ def visualize(modelName, scoreList, criterion="log_likelihood", average="thres")
 
         # Plotting
         plt.figure(figsize=(10, 6))
-        plt.plot([0], [trueModelScore], color="red", label="True Model", marker="o", markersize=10)
+        plt.plot([0], [trueModelScore], color="black", label="Truth", marker="o", markersize=10)
 
         for i, modeltype in enumerate(scoreListMean["model"]):
             mean_value = scoreListMean[scoreListMean["model"] == modeltype][metric].values[0]
             upper_value = scoreListUpper[scoreListUpper["model"] == modeltype][metric].values[0]
             lower_value = scoreListLower[scoreListLower["model"] == modeltype][metric].values[0]
-            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=modeltype, capsize=5)
+            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=model_rename_dict[modeltype], capsize=5)
 
         plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
         plt.ylabel(metric)
@@ -158,6 +161,10 @@ def visualize(modelName, scoreList, criterion="log_likelihood", average="thres")
         LLBIC_columns = [col for col in scoreList.columns if col.endswith(f"_{criterion}")]
         variables = sorted(list(set('_'.join(col.split('_')[:1]) for col in LLBIC_columns)))
 
+        truth_scores = scoreList[scoreList['model'] == 'truth'][LLBIC_columns].iloc[0]
+        sorted_vars = truth_scores.sort_values(ascending=False).index
+        renamed_vars = {var: f'V{i+1}' for i, var in enumerate(sorted_vars)}
+
         scoreList = scoreList[["model"] + LLBIC_columns]
         # plot2, plot criterion for each variable in one plot
         # ranged plot like "elasticity"
@@ -166,16 +173,19 @@ def visualize(modelName, scoreList, criterion="log_likelihood", average="thres")
         for modeltype in scoreList["model"].unique():
             model_data = scoreList[scoreList["model"] == modeltype]
             plot_data = []
-            for variable in variables:
-                variable_values = model_data[f"{variable}_{criterion}"].dropna()
+            i = 0
+            for sorted_var in sorted_vars:
+                variable_values = model_data[sorted_var].dropna()
                 mean_value = variable_values.mean()
                 upper_value = variable_values.quantile(0.95)
                 lower_value = variable_values.quantile(0.05)
-                plot_data.append((variable, mean_value, lower_value, upper_value))
+                plot_data.append((i, mean_value, lower_value, upper_value))
+                i += 1
             x, means, lowers, uppers = zip(*plot_data)
-            plt.plot(x, means, label=f'{modeltype} Mean {criterion}', marker='o')
-            plt.fill_between(x, lowers, uppers, alpha=0.2, label=f'{modeltype} 0.05-0.95 Quantile Range')
+            plt.plot(x, means, label=f'{model_rename_dict[modeltype]} Mean {criterion}', marker='o', color=color_dict[modeltype])
+            plt.fill_between(x, lowers, uppers, alpha=0.2, label=f'{model_rename_dict[modeltype]} 0.05-0.95 Quantile Range', color=color_dict[modeltype])
         plt.xlabel('Variable')
+        plt.xticks(np.arange(0, len(sorted_vars), 5))
         plt.ylabel(criterion)
         plt.legend()
         plt.grid(True)
@@ -192,12 +202,12 @@ def visualize(modelName, scoreList, criterion="log_likelihood", average="thres")
         scoreListLower = scoreList.groupby("model").quantile(0.05).reset_index()
         # Plotting
         plt.figure(figsize=(10, 6))
-        plt.plot([0], [trueModelScore], color="red", label="True Model", marker="o", markersize=10)
+        plt.plot([0], [trueModelScore], color="black", label="Truth", marker="o", markersize=10)
         for i, modeltype in enumerate(scoreListMean["model"]):
             mean_value = scoreListMean[scoreListMean["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
             upper_value = scoreListUpper[scoreListUpper["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
             lower_value = scoreListLower[scoreListLower["model"] == modeltype][LLBIC_columns].sum(axis=1).values[0]
-            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=modeltype, capsize=5)
+            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=model_rename_dict[modeltype], capsize=5, color=color_dict[modeltype])
         plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
         plt.ylabel(f"Sum of {criterion} over variables")
         plt.legend()
@@ -242,6 +252,22 @@ def visualize(modelName, scoreList, criterion="log_likelihood", average="thres")
             plt.grid(True)
             plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_{controlVar}_{average}.png"))
             plt.close()
+
+        specific_change_rate = 0.01  # Example, set this to your desired changeRate
+        plt.figure(figsize=(10, 6))
+        plot_data = []
+        for model in scoreList["model"].unique():
+            model_data = scoreList[scoreList["model"] == model]
+            mean_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].mean() for controlVar in controlVars]
+            upper_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].quantile(0.95) for controlVar in controlVars]
+            lower_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].quantile(0.05) for controlVar in controlVars]
+            plt.plot(list(controlVars), mean_values, label=f'{model_rename_dict[model]} Elasticity at Change Rate {specific_change_rate}', marker='o', color=color_dict[model])
+        plt.xlabel('Variable')
+        plt.ylabel(f'Elasticity at Change Rate {specific_change_rate}')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_specific_{specific_change_rate}_{average}.png"))
+        plt.close()
 
 def calculate_log_likelihood(variable):
     data = variable.get_data('input')
