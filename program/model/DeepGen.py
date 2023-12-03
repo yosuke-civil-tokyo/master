@@ -91,7 +91,7 @@ def createAdjacencyMatrix(config, truthConfig):
 
     var_to_idx = {var: idx for idx, var in enumerate(variables.keys())}
     for var, details in variables.items():
-        for parent in details["parents"]:
+        for parent in config["variables"][var]["parents"]:
             adjacency_matrix[var_to_idx[var], var_to_idx[parent]] = 1
 
     return adjacency_matrix
@@ -129,12 +129,12 @@ def detectCycle(adjacency_matrix, node, visited, finished):
     return False
 
 if __name__ == "__main__":
-    folder = "data/modelData/model2/model2-normalorder_optimization/"
+    folder = "data/modelData/model2/model2-objorder_optimization/"
     with open("data/modelData/model2/truth/truth.json", "r") as f:
         truthConfig = json.load(f)
     adjacency_matrices = createTensorsFromConfigs(folder, truthConfig=truthConfig)
-    data_loader = torch.utils.data.DataLoader(adjacency_matrices, batch_size=4, shuffle=True)
+    data_loader = torch.utils.data.DataLoader(adjacency_matrices, batch_size=8, shuffle=True)
     model = DeepGenerativeModel(z_dim=33)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    model.train(data_loader=data_loader, optimizer=optimizer, epochs=500)
+    model.train(data_loader=data_loader, optimizer=optimizer, epochs=2000)
     torch.save(model.state_dict(), os.path.join(folder, "model_state.pth"))
