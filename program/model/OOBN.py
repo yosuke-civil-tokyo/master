@@ -10,6 +10,9 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
+import sys
+
+sys.setrecursionlimit(3000)
 
 from model.BN import Variable
 
@@ -454,20 +457,26 @@ class ObjectNode(Variable):
             raise ValueError("Invalid operation. Choose 'add', 'remove', or 'reverse'.")
     
     # check if start_node is reachable from end_node by going up to the parents
-    def reachable(self, start_node, end_node, allowDirect=True):
+    def reachable(self, start_node, end_node, allowDirect=True, visited=None):
         if len(self.find_variable(end_node).parents) == 0:
             return False
         
-        reachable = []
+        if visited is None:
+            visited = set()
+
+        visited.add(end_node)
+        
         for parent in self.find_variable(end_node).parents:
             if parent.name == start_node:
                 if not allowDirect:
-                    return reachable.append(False)
-                return True
-            else:
-                reachable.append(self.reachable(start_node, parent.name, allowDirect=True))
+                    continue
+                else:
+                    return True
+            elif parent.name in visited:
+                if self.reachable(start_node, parent.name, allowDirect=True):
+                    return True
 
-        return any(reachable)
+        return False
     
     # calculate the BIC gain
     def calculate_bic_gain(self, operation):
