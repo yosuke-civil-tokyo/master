@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from model.BuildModel import BuildModelFromConfig
 from model.ModelAverage import thresAverage, bestChoice, deepAverage
+from model.DeepGen import DeepGenerativeModel
 from dl.DataLoader import make_dataloader
 
 # get score
@@ -28,8 +29,8 @@ def getScore(config):
 
     # list model configs
     modelPaths = os.listdir(os.path.join("data/modelData", modelName))
-    scoreFilePath = os.path.join("data/modelData", modelName, "scoreAve.csv")
-    if "scoreAve.csv" in modelPaths:
+    scoreFilePath = os.path.join("data/modelData", modelName, f"scoreAve_{averageMethod}.csv")
+    if f"scoreAve_{averageMethod}.csv" in modelPaths:
         return pd.read_csv(scoreFilePath)
 
     scoreList = []
@@ -37,6 +38,7 @@ def getScore(config):
 
     with open(os.path.join("data/modelData", modelName, "truth", "truth.json"), "r") as f:
         truthConfig = json.load(f)
+    normConfig = truthConfig.copy()
     # get score for each model
     for folder in modelPaths:
         folderPath = os.path.join("data/modelData", modelName, folder)
@@ -58,12 +60,17 @@ def getScore(config):
                 continue
             modelConfigs.append(modelConfig)
         # average
-        if averageMethod == "thres":
-            aveConfigs, calTime = thresAverage(modelConfigs, truthConfig=truthConfig)
+        if folder == "truth":
+            with open(os.path.join("data/modelData", modelName, "truth", "truth.json"), "r") as f:
+                truthConfig = json.load(f)
+            aveConfigs = [truthConfig]
+            calTime = 0
+        elif averageMethod == "thres":
+            aveConfigs, calTime = thresAverage(modelConfigs, truthConfig=normConfig)
         elif averageMethod == "best":
-            aveConfigs, calTime = bestChoice(modelConfigs, truthConfig=truthConfig)
+            aveConfigs, calTime = bestChoice(modelConfigs, truthConfig=normConfig)
         elif averageMethod == "deep":
-            aveConfigs, calTime = deepAverage(modelConfigs, num_samples=dataLen, sample_per_model=10, modelName=folder, truthConfig=truthConfig)
+            aveConfigs, calTime = deepAverage(folder_path=folderPath, num_samples=dataLen, truthConfig=normConfig, model_num=1)
         else:
             print("average method not found")
             return
@@ -78,11 +85,12 @@ def getScore(config):
             dataRange = (i*dataLen//len(aveConfigs), (i+1)*dataLen//len(aveConfigs))
             eachScore = []
             model = BuildModelFromConfig(aveConfig)
-            model.set_random_cpt()
-            model.set_data_from_dataloader(dl, dataRange=dataRange)
+            model.set_data_from_dataloader(dl, column_list=list(modelConfig.get("variables").keys()), dataRange=dataRange)
+            for var_name in aveConfig.get("variables").keys():
+                model.find_variable(var_name).estimate_cpt()
 
             # scores
-            eachScore.append(edgeDetectAccuracy(modelConfig, truthConfig))
+            eachScore.append(edgeDetectAccuracy(aveConfig, truthConfig))
             # add loglikelihood and BIC for every variable
             LLBICcol = []
             for variable in truthConfig.get("variables").keys():
@@ -91,11 +99,12 @@ def getScore(config):
                 eachScore.append(calculate_log_likelihood(model.find_variable(variable)))
                 eachScore.append(calculate_BIC(model.find_variable(variable)))
             if folder == "truth":
-                tryTime = 3
+                tryTime = 1
             else:
                 tryTime = 1
             for controlVar in controlVars:
                 for changeRate in changeRates:
+                    print("controlVar: ", controlVar, "changeRate: ", changeRate)
                     eachScore.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime))
             i += 1
             aveScore.append(eachScore)
