@@ -93,6 +93,8 @@ def getScore(config):
                 model.find_variable(var_name).estimate_cpt()
 
             # scores
+            with open(os.path.join("data/modelData", modelName, "truth", "truth.json"), "r") as f:
+                truthConfig = json.load(f)
             eachScore.append(edgeDetectAccuracy(aveConfig, truthConfig))
             # add loglikelihood and BIC for every variable
             LLBICcol = []
