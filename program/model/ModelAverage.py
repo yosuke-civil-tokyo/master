@@ -53,7 +53,7 @@ def deepAverage(folder_path, num_samples=100, truthConfig=None, model_num=1):
     variableNames = list(truthConfig.get("variables").keys())
     configs = []
     for i in range(len(sampled_matrices_np)):
-        configs.append(setArcs(truthConfig, sampled_matrices_np[i], variableNames))
+        configs.append(setArcs(truthConfig.copy(), sampled_matrices_np[i], variableNames))
 
     return configs, time.time()-startTime
 

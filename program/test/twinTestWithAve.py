@@ -73,7 +73,7 @@ def getScore(config):
         elif averageMethod == "best":
             aveConfigs, calTime = bestChoice(modelConfigs, truthConfig=normConfig)
         elif averageMethod == "deep":
-            aveConfigs, calTime = deepAverage(folder_path=folderPath, num_samples=dataLen, truthConfig=normConfig, model_num=1)
+            aveConfigs, calTime = deepAverage(folder_path=folderPath, num_samples=dataLen, truthConfig=normConfig, model_num=5)
         else:
             print("average method not found")
             return
@@ -88,7 +88,7 @@ def getScore(config):
             dataRange = (i*dataLen//len(aveConfigs), (i+1)*dataLen//len(aveConfigs))
             eachScore = []
             model = BuildModelFromConfig(aveConfig)
-            model.set_data_from_dataloader(dl, column_list=list(modelConfig.get("variables").keys()), dataRange=dataRange)
+            model.set_data_from_dataloader(dl, column_list=list(modelConfig.get("variables").keys()))
             for var_name in aveConfig.get("variables").keys():
                 model.find_variable(var_name).estimate_cpt()
 
@@ -150,7 +150,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood", average="thres")
             mean_value = scoreListMean[scoreListMean["model"] == modeltype][metric].values[0]
             upper_value = scoreListUpper[scoreListUpper["model"] == modeltype][metric].values[0]
             lower_value = scoreListLower[scoreListLower["model"] == modeltype][metric].values[0]
-            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=model_rename_dict[modeltype], capsize=5)
+            plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=model_rename_dict[modeltype], capsize=5, color=color_dict[modeltype])
 
         plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
         plt.ylabel(metric)
@@ -244,8 +244,8 @@ def visualize(modelName, scoreList, criterion="log_likelihood", average="thres")
 
                 # Plotting for each model
                 x, means, lowers, uppers = zip(*plot_data)
-                plt.plot(x, means, label=f'{model} Mean Elasticity', marker='o')
-                plt.fill_between(x, lowers, uppers, alpha=0.2, label=f'{model} 0.05-0.95 Quantile Range')
+                plt.plot(x, means, label=f'{model} Mean Elasticity', marker='o', color=color_dict[model])
+                plt.fill_between(x, lowers, uppers, alpha=0.2, label=f'{model} 0.05-0.95 Quantile Range', color=color_dict[model])
 
             plt.xlabel('Change Rate')
             plt.ylabel('Elasticity')
@@ -344,4 +344,4 @@ if __name__ == "__main__":
     visualize(config["modelName"], scoreList, criterion="BIC", average=config["averageMethod"])
     visualize(config["modelName"], scoreList, criterion="elasticity", average=config["averageMethod"])
     visualize(config["modelName"], scoreList, criterion="timeTaken", average=config["averageMethod"])
-
+    visualize(config["modelName"], scoreList, criterion="edgeAccuracy", average=config["averageMethod"])

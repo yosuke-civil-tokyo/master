@@ -77,9 +77,6 @@ class DeepGenerativeModel(nn.Module):
                 finished = torch.zeros(self.z_dim)
                 if not detectCycle(sample, 0, visited, finished):
                     samples.append(sample)
-                    print(sample.nonzero())
-                else:
-                    print("cycle detected")
             samples = torch.stack(samples)
         return samples
     
