@@ -4,3 +4,4 @@ nohup.out
 *.pyc
 
 data/
+model/DAG-GNN/
