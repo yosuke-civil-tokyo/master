@@ -8,7 +8,7 @@ import torch
 # average function for structure
 # the one calculate each arc's reliability 
 # and add to the model if it is higher than threshold
-def thresAverage(configs, beta=0.75, truthConfig=None):
+def thresAverage(configs, beta=0.6, truthConfig=None):
     startTime = time.time()
     variableNames = list(truthConfig.get("variables").keys())
     variableNums = {variableNames[i]: i for i in range(len(variableNames))}

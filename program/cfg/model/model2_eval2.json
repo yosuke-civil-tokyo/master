@@ -3,5 +3,5 @@
     "targetVar": "trip1",
     "controlVars": ["license", "income", "employed", "education", "access"],
     "changeRates": [0.001, 0.01, 0.1],
-    "averageMethod": "best"
+    "averageMethod": "deep"
 }

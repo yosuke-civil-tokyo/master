@@ -578,7 +578,7 @@ class ObjectNode(Variable):
                 self.ordering.append(name)
 
     # Evaluate performance
-    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood", num_samples=1000, tryTime=1):
+    def evaluate(self, targetVar, controlVar=None, changeRate=0.01, type="log_likelihood", num_samples=1000, tryTime=1, rand=None, folderPath=None):
 
         target_variable = self.find_variable(targetVar)
         control_variable = self.find_variable(controlVar) if controlVar else None
@@ -590,8 +590,11 @@ class ObjectNode(Variable):
             # sum up BIC score for every variable
             return self.BIC_all()
         elif type == "elasticity":
+            if rand is None:
+                rand = np.random.rand(len(target_variable.get_data('input')))
+                np.savetxt(os.path.join(folderPath, "rand.csv"), rand, delimiter=",")
             if self.reachable(control_variable.name, target_variable.name):
-                return np.mean([self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples) for _ in range(tryTime)])
+                return np.mean([self.calculate_elasticity(target_variable, control_variable, changeRate, num_samples, rand) for _ in range(tryTime)])
             else:
                 return 0
 
@@ -673,16 +676,16 @@ class ObjectNode(Variable):
         return model_params
     
 
-    def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000):
+    def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000, rand=None):
         # generate data with original condition
-        self.generate(num_samples=num_samples, start_node=control_variable.name)
+        # self.generate(num_samples=num_samples, start_node=control_variable.name)
         prob_table_ori = self.aggregate_distribution_table(target_variable, num_samples)
 
         # modify control variable's data
-        control_variable.modify_data(change_rate)
+        control_variable.modify_data(change_rate, rand=rand)
 
         # generate data with modified condition
-        self.generate(num_samples=num_samples, start_node=control_variable.name)
+        # self.generate(num_samples=num_samples, start_node=control_variable.name)
         prob_table_mod = self.aggregate_distribution_table(target_variable, num_samples)
 
         # calculate elasticity

@@ -68,12 +68,18 @@ def getScore(config):
                     scores.append(calculate_log_likelihood(model.find_variable(variable)))
                     scores.append(calculate_BIC(model.find_variable(variable)))
                 if folder == "truth":
-                    tryTime = 3
+                    tryTime = 1
                 else:
                     tryTime = 1
+                if "rand.csv" in modelPaths:
+                    # read index file
+                    randFilePath = os.path.join("data/modelData", modelName, "rand.csv")
+                    randData = np.loadtxt(randFilePath, delimiter=",")
+                else:
+                    randData = None
                 for controlVar in controlVars:
                     for changeRate in changeRates:
-                        scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime))
+                        scores.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime, rand=randData, folderPath=os.path.join("data/modelData", modelName)))
                 
                 # make it dataframe
                 scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "edgeAccuracy"]+ LLBICcol +["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
@@ -112,6 +118,8 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
 
         plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
         plt.ylabel(metric)
+        if criterion == "edgeAccuracy":
+            plt.ylim([0,1])
         plt.legend()
         plt.savefig(os.path.join("data/modelData", modelName, f"{metric}.png"))
         plt.close()
@@ -148,6 +156,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         plt.xlabel('Variable')
         plt.xticks(np.arange(0, len(sorted_vars), 5))
         plt.ylabel(criterion)
+        plt.ylim([-50000, -10000])
         plt.legend()
         plt.grid(True)
         plt.savefig(os.path.join("data/modelData", modelName, f"{criterion}.png"))
@@ -204,6 +213,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
             plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=model_rename_dict[modeltype], capsize=5, color=color_dict[modeltype])
         plt.xticks(range(len(scoreListMean["model"]) + 1), ["True Model"] + list(scoreListMean["model"]), rotation=45)
         plt.ylabel(f"Sum of {criterion} over variables")
+        plt.ylim([-1.1e6, -0.7e6])
         plt.legend()
         plt.savefig(os.path.join("data/modelData", modelName, f"sum_{criterion}.png"))
         plt.close()
@@ -212,7 +222,7 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
     elif criterion == "elasticity":
         # Filter for elasticity columns
         elasticity_columns = [col for col in scoreList.columns if col.startswith("elasticity_")]
-        controlVars = set('_'.join(col.split('_')[1:-1]) for col in elasticity_columns)
+        controlVars = sorted(list(set('_'.join(col.split('_')[1:-1]) for col in elasticity_columns)))
         changeRates = sorted(list(set(float(col.split('_')[-1]) for col in elasticity_columns)))
         true_model_data = scoreList[scoreList["model"] == "truth"]
 
@@ -280,14 +290,26 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         specific_change_rate = 0.01  # Example, set this to your desired changeRate
         plt.figure(figsize=(10, 6))
         plot_data = []
+        i=0
         for model in scoreList["model"].unique():
+            j=0
             model_data = scoreList[scoreList["model"] == model]
-            mean_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].mean() for controlVar in controlVars]
-            upper_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].quantile(0.95) for controlVar in controlVars]
-            lower_values = [model_data[f"elasticity_{controlVar}_{specific_change_rate}"].quantile(0.05) for controlVar in controlVars]
-            plt.plot(list(controlVars), mean_values, label=f'{model_rename_dict[model]} Elasticity at Change Rate {specific_change_rate}', marker='o', color=color_dict[model])
+            mean_value = {controlVar:model_data[f"elasticity_{controlVar}_{specific_change_rate}"].mean() for controlVar in controlVars}
+            upper_value = {controlVar:model_data[f"elasticity_{controlVar}_{specific_change_rate}"].quantile(0.99) for controlVar in controlVars}
+            lower_value = {controlVar:model_data[f"elasticity_{controlVar}_{specific_change_rate}"].quantile(0.01) for controlVar in controlVars}
+            for controlVar in controlVars:
+                if j == 0:
+                    lab = f'{model_rename_dict[model]}'
+                else:
+                    lab = None
+                plt.errorbar([i+6*j], [mean_value[controlVar]], yerr=[[mean_value[controlVar] - lower_value[controlVar]], [upper_value[controlVar] - mean_value[controlVar]]], fmt='o', label=lab, capsize=5, color=color_dict[model])
+                j += 1
+            i += 1
+            # plt.errorbar([i + 1], [mean_value], yerr=[[mean_value - lower_value], [upper_value - mean_value]], fmt='o', label=model_rename_dict[modeltype], capsize=5, color=color_dict[modeltype])
         plt.xlabel('Variable')
+        plt.xticks([6*j+2 for j in range(len(controlVars))], [controlVar for controlVar in controlVars], rotation=45)
         plt.ylabel(f'Elasticity at Change Rate {specific_change_rate}')
+        plt.ylim([-0.0001, 0.0013])
         plt.legend()
         plt.grid(True)
         plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_specific_{specific_change_rate}.png"))
@@ -329,19 +351,14 @@ def edgeDetectAccuracy(modelConfig, truthConfig):
     modelVariables = modelConfig.get("variables")
     truthVariables = truthConfig.get("variables")
     allVariableNames = list(truthVariables.keys())
-    allPairs = len(allVariableNames) * (len(allVariableNames) - 1)
+    allPairs = 0
 
     correctPairs = 0
     for child in allVariableNames:
-        for parent in allVariableNames:
-            if child == parent:
-                continue
-            elif (parent in modelVariables[child]["parents"]) & (parent in truthVariables[child]["parents"]):
+        for parent in truthVariables[child]["parents"]:
+            allPairs += 1
+            if parent in modelVariables[child]["parents"]:
                 correctPairs += 1
-            elif (parent not in modelVariables[child]["parents"]) & (parent not in truthVariables[child]["parents"]):
-                correctPairs += 1
-            else:
-                continue
     
     return correctPairs / allPairs
 
@@ -364,8 +381,8 @@ if __name__ == "__main__":
     # get score
     scoreList = getScore(config)
     # visualize
-    visualize(config["modelName"], scoreList, criterion="log_likelihood")
+    # visualize(config["modelName"], scoreList, criterion="log_likelihood")
     visualize(config["modelName"], scoreList, criterion="BIC")
-    visualize(config["modelName"], scoreList, criterion="elasticity")
-    visualize(config["modelName"], scoreList, criterion="timeTaken")
-    visualize(config["modelName"], scoreList, criterion="edgeAccuracy")
+    # visualize(config["modelName"], scoreList, criterion="elasticity")
+    # visualize(config["modelName"], scoreList, criterion="timeTaken")
+    # visualize(config["modelName"], scoreList, criterion="edgeAccuracy")
