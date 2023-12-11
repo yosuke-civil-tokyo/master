@@ -143,10 +143,12 @@ class Variable:
         self.cpt = np.nan_to_num(cpt)
         return cpt
     
-    def modify_data(self, change_rate):
+    def modify_data(self, change_rate, rand=None):
+        if rand is None:
+            rand = np.random.rand(len(self.get_data('input')))
         original_data = self.get_data('input')
-        random_data = np.random.choice(self.states, size=len(original_data))
-        modified_data = np.where(np.random.rand(len(original_data)) < change_rate, random_data, original_data)
+        change_data = np.where((original_data-1)==-1, self.states-1, original_data-1)
+        modified_data = np.where(rand < change_rate, change_data, original_data)
         self.set_data(modified_data)
         
     

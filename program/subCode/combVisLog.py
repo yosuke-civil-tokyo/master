@@ -33,6 +33,8 @@ def numStructure(n):
     return orderNum
 
 def numStructureWithObjects(n, o):
+    if n < o:
+        return numStructureWithObjects(n, n)
     varNumInObjects = n//o
     wideNum = numStructure(o)
     inObjNum = numStructure(varNumInObjects)*o
@@ -95,4 +97,4 @@ def drawCombs(n, o, c):
     plt.show()
 
 if __name__ == "__main__":
-    drawOrder(51, 5, 10)
+    drawCombs(51, 5, 10)
