@@ -5,3 +5,4 @@ nohup.out
 
 data/
 model/DAG-GNN/
+model/D-VAE/
