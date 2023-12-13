@@ -2,7 +2,7 @@ import os
 import time
 import numpy as np
 
-from model.DeepGen import DeepGenerativeModel
+from model.DeepGen import DeepGenerativeModel, ConditionalVAE
 import torch
 
 # average function for structure
@@ -45,10 +45,11 @@ def bestChoice(configs, truthConfig=None):
 def deepAverage(folder_path, num_samples=100, truthConfig=None, model_num=1):
     startTime = time.time()
     model_path = os.path.join(folder_path, "model_state.pth")
-    model = DeepGenerativeModel(z_dim=33)
+    model = ConditionalVAE(z_dim=33)
     model.load_state_dict(torch.load(model_path))
     print("loading model from: ", model_path)
-    sampled_matrices = model.sample(model_num)
+    preferrable_bic = torch.unsqueeze(torch.tensor([1.8]*33), 0)
+    sampled_matrices = model.sample_with_good_BIC(model_num, preferrable_bic)
     sampled_matrices_np = sampled_matrices.cpu().numpy()
     variableNames = list(truthConfig.get("variables").keys())
     configs = []

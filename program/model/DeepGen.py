@@ -231,8 +231,12 @@ def createTensorsFromConfigs(folder, truthConfig, addBIC=False):
     adjacency_matrices = torch.stack(adjacency_matrices)
 
     if addBIC:
-        bic_scores = torch.tensor([createBICScore(config, truthConfig) for config in configs])
+        bic_scores = torch.stack([createBICScore(config, truthConfig) for config in configs])
+        # standardize BIC scores
+        bic_scores = (bic_scores - bic_scores.mean(dim=0)) / bic_scores.std(dim=0)
+        bic_scores = bic_scores.nan_to_num(nan=0.0, posinf=0.0, neginf=0.0)
         return adjacency_matrices, bic_scores
+    
     return adjacency_matrices
 
 # function to check if the adjacency matrix has loops
