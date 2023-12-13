@@ -670,7 +670,8 @@ class ObjectNode(Variable):
                 model_params["variables"][var_name] = {
                     "num_states": variable.states,
                     "parents": [parent.output for parent in variable.parents],
-                    "cpt": variable.cpt.tolist() if variable.cpt is not None else None
+                    "cpt": variable.cpt.tolist() if variable.cpt is not None else None,
+                    "BIC": self.BIC_sep(variable)
                 }
                 model_params["objects"][self.name]["variables"].append(var_name)
         return model_params

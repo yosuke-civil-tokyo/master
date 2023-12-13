@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.utils.data import DataLoader
 
 class DeepGenerativeModel(nn.Module):
     def __init__(self, z_dim=8):
@@ -238,7 +239,7 @@ if __name__ == "__main__":
     with open("data/modelData/model2/truth/truth.json", "r") as f:
         truthConfig = json.load(f)
     adjacency_matrices = createTensorsFromConfigs(folder, truthConfig=truthConfig)
-    data_loader = torch.utils.data.DataLoader(adjacency_matrices, batch_size=8, shuffle=True)
+    data_loader = DataLoader(adjacency_matrices, batch_size=8, shuffle=True)
     model = DeepGenerativeModel(z_dim=33)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     model.train(data_loader=data_loader, optimizer=optimizer, epochs=2000)
