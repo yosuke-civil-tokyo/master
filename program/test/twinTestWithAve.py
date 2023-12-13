@@ -23,6 +23,7 @@ def getScore(config):
     controlVars = config["controlVars"]
     changeRates = config["changeRates"]
     averageMethod = config["averageMethod"]
+    expTimes = config["expTimes"]
 
     # data
     dl = make_dataloader(None, None, None, None, modelName)
@@ -69,11 +70,13 @@ def getScore(config):
             aveConfigs = [truthConfig]
             calTime = 0
         elif averageMethod == "thres":
-            aveConfigs, calTime = thresAverage(modelConfigs, truthConfig=normConfig)
+            aveConfigs, calTime = thresAverage(modelConfigs, truthConfig=normConfig, model_num=expTimes)
         elif averageMethod == "best":
-            aveConfigs, calTime = bestChoice(modelConfigs, truthConfig=normConfig)
+            aveConfigs, calTime = bestChoice(modelConfigs, truthConfig=normConfig, model_num=expTimes)
         elif averageMethod == "deep":
-            aveConfigs, calTime = deepAverage(folder_path=folderPath, num_samples=dataLen, truthConfig=normConfig, model_num=2)
+            aveConfigs, calTime = deepAverage(folder_path=folderPath, num_samples=dataLen, truthConfig=normConfig, model_num=expTimes)
+        elif averageMethod == "deepC":
+            aveConfigs, calTime = deepAverage(folder_path=folderPath, num_samples=dataLen, truthConfig=normConfig, model_num=expTimes, condition=True)
         else:
             print("average method not found")
             return
@@ -81,7 +84,7 @@ def getScore(config):
         # get one score for the group of Configs
         # merge multiple result to get one score
         score = [folder, calTime]
-        aveScore = []
+        # aveScore = []
         # BIC, log_likelihood, elasticity
         i = 0
         for aveConfig in aveConfigs:
@@ -118,16 +121,13 @@ def getScore(config):
                     print("controlVar: ", controlVar, "changeRate: ", changeRate)
                     eachScore.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime, rand=randData, folderPath=folderPath))
             i += 1
-            aveScore.append(eachScore)
-        aveScore = np.array(aveScore).mean(axis=0)
-        for s in aveScore:
-            score.append(s)
+            
 
-        # make it dataframe
-        score = pd.DataFrame(np.array([score]), columns=["model", "timeTaken", "edgeAccuracy"]+ LLBICcol +["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
-        with open(scoreFilePath, 'a') as file:
-            score.to_csv(file, header=firstData, index=False)
-        firstData = False
+            # make it dataframe
+            score = pd.DataFrame(np.array([eachScore]), columns=["model", "timeTaken", "edgeAccuracy"]+ LLBICcol +["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
+            with open(scoreFilePath, 'a') as file:
+                score.to_csv(file, header=firstData, index=False)
+            firstData = False
 
     return pd.read_csv(scoreFilePath)
 
@@ -356,8 +356,8 @@ if __name__ == "__main__":
     # get score
     scoreList = getScore(config)
     # visualize
-   # visualize(config["modelName"], scoreList, criterion="log_likelihood", average=config["averageMethod"])
+    visualize(config["modelName"], scoreList, criterion="log_likelihood", average=config["averageMethod"])
     visualize(config["modelName"], scoreList, criterion="BIC", average=config["averageMethod"])
-   # visualize(config["modelName"], scoreList, criterion="elasticity", average=config["averageMethod"])
+    visualize(config["modelName"], scoreList, criterion="elasticity", average=config["averageMethod"])
    # visualize(config["modelName"], scoreList, criterion="timeTaken", average=config["averageMethod"])
-   # visualize(config["modelName"], scoreList, criterion="edgeAccuracy", average=config["averageMethod"])
+    visualize(config["modelName"], scoreList, criterion="edgeAccuracy", average=config["averageMethod"])
