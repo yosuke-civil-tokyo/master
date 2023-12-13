@@ -47,6 +47,22 @@ class DeepGenerativeModel(nn.Module):
         lower_bound = [-KL, reconstruction]
         return -sum(lower_bound)
     
+    def weighted_loss(self, x, bic_score):
+        '''
+        x: adjacency matrix (m, m)
+        bic_score: bic score of each node (m, )
+        '''
+        delta = 1e-7
+        mean, var = self._encoder(x)
+        KL = -0.5 * torch.mean(torch.sum(1 + torch.log(var + delta) - mean**2 - var, dim=1))
+
+        z = self._sample_z(mean, var)
+        y = self._decoder(z)
+
+        weighted_reconstruction = torch.mean(torch.sum(x * torch.log(y + delta) + (1 - x) * torch.log(1 - y + delta), dim=[1, 2]) * bic_score)
+        lower_bound = [-KL, weighted_reconstruction]
+        return -sum(lower_bound)
+    
     def train(self, data_loader, optimizer, epochs=1000):
         print("Training...")
         for epoch in range(epochs+1):
@@ -80,6 +96,98 @@ class DeepGenerativeModel(nn.Module):
             samples = torch.stack(samples)
         return samples
     
+
+class ConditionalVAE(nn.Module):
+    def __init__(self, z_dim=8):
+        super().__init__()
+        self.z_dim = z_dim
+
+        # Encoder: Adjusted to accept concatenated input of adjacency matrix and BIC scores
+        self.dense_enc1 = nn.Linear(z_dim * z_dim + z_dim, 32)  
+        self.dense_encmean = nn.Linear(32, z_dim)
+        self.dense_encvar = nn.Linear(32, z_dim)
+
+        # Decoder: Takes latent z and concatenated BIC scores
+        self.dense_dec1 = nn.Linear(z_dim + z_dim, z_dim * z_dim)
+
+    def _encoder(self, x, bic_score):
+        # Reshape x and concatenate with bic_score
+        combined_input = torch.cat((x.view(-1, self.z_dim * self.z_dim), bic_score), dim=1)
+        h = F.relu(self.dense_enc1(combined_input))
+        mean = self.dense_encmean(h)
+        var = F.softplus(self.dense_encvar(h))
+        return mean, var
+
+    def _decoder(self, z, bic_score):
+        # Concatenate z and bic_score
+        combined_input = torch.cat((z, bic_score), dim=1)
+        x = torch.sigmoid(self.dense_dec1(combined_input))
+        return x.view(-1, self.z_dim, self.z_dim)
+
+    def forward(self, x, bic_score):
+        mean, var = self._encoder(x, bic_score)
+        z = self._sample_z(mean, var)
+        x_recon = self._decoder(z, bic_score)
+        return x_recon, z
+
+    def _sample_z(self, mean, var):
+        epsilon = torch.randn(mean.shape)
+        return mean + torch.sqrt(var) * epsilon
+    
+    def loss(self, x, bic_score):
+        delta = 1e-7
+        mean, var = self._encoder(x, bic_score)
+        KL = -0.5 * torch.mean(torch.sum(1 + torch.log(var + delta) - mean**2 - var, dim=1))
+        z = self._sample_z(mean, var)
+        y = self._decoder(z, bic_score)
+        reconstruction = torch.mean(torch.sum(x * torch.log(y + delta) + (1 - x) * torch.log(1 - y + delta), dim=[1, 2]))
+        lower_bound = [-KL, reconstruction]
+        return -sum(lower_bound)
+    
+    def train(self, data_loader, optimizer, epochs=1000):
+        print("Training...")
+        for epoch in range(epochs+1):
+            total_loss = 0
+            for batch_idx, (data, bic_score) in enumerate(data_loader):
+                optimizer.zero_grad()
+                loss = self.loss(data, bic_score)
+                loss.backward()
+                total_loss += loss.item()
+                optimizer.step()
+            if epoch % 50 == 0:
+                print('Epoch {}: Loss: {:.3f}'.format(epoch+1, total_loss / len(data_loader)))
+    
+    def sample_with_good_BIC(self, num_samples, bic_score):
+        with torch.no_grad():
+            samples = []
+            while len(samples) < num_samples:
+                z = torch.randn(1, self.z_dim)
+                sample = self._decoder(z, bic_score)
+                sample = sample.squeeze(0)
+                sample = sample.round()
+                sample = sample.numpy()
+                sample = sample.astype(int)
+                sample = torch.tensor(sample)
+                visited = torch.zeros(self.z_dim)
+                finished = torch.zeros(self.z_dim)
+                if not detectCycle(sample, 0, visited, finished):
+                    samples.append(sample)
+            samples = torch.stack(samples)
+        return samples
+    
+    def sample_with_random_bic(self, num_samples, bic_score_range):
+        with torch.no_grad():
+            samples = []
+            while len(samples) < num_samples:
+                z = torch.randn(1, self.z_dim)
+                # Sample a random BIC score within a given range
+                random_bic = torch.FloatTensor(1, self.z_dim).uniform_(*bic_score_range)
+                sample = self._decoder(z, random_bic)
+                # Process the sample as needed
+                sample = sample.squeeze(0).round().numpy().astype(int)
+                samples.append(sample)
+            samples = torch.stack([torch.tensor(s) for s in samples])
+        return samples
 
 def createAdjacencyMatrix(config, truthConfig):
     variables = truthConfig["variables"]
