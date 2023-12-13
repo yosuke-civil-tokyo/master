@@ -95,6 +95,7 @@ class DeepGenerativeModel(nn.Module):
                 finished = torch.zeros(self.z_dim)
                 if not detectCycle(sample, 0, visited, finished):
                     samples.append(sample)
+                    print("sampled: ", len(samples))
             samples = torch.stack(samples)
         return samples
     
@@ -174,6 +175,7 @@ class ConditionalVAE(nn.Module):
                 finished = torch.zeros(self.z_dim)
                 if not detectCycle(sample, 0, visited, finished):
                     samples.append(sample)
+                    print("sampled: ", len(samples))
             samples = torch.stack(samples)
         return samples
     
@@ -254,7 +256,7 @@ def detectCycle(adjacency_matrix, node, visited, finished):
     finished[node] = True
     return False
 
-"""
+
 if __name__ == "__main__":
     folder = "data/modelData/model2/model2-objorder_optimization/"
     with open("data/modelData/model2/truth/truth.json", "r") as f:
@@ -276,4 +278,5 @@ if __name__ == "__main__":
     model = ConditionalVAE(z_dim=33)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     model.train(data_loader=data_loader, optimizer=optimizer, epochs=2000)
-    torch.save(model.state_dict(), os.path.join(folder, "model_state.pth"))
+    torch.save(model.state_dict(), os.path.join(folder, "model_state_condition.pth"))
+"""

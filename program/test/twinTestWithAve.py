@@ -83,13 +83,12 @@ def getScore(config):
         
         # get one score for the group of Configs
         # merge multiple result to get one score
-        score = [folder, calTime]
         # aveScore = []
         # BIC, log_likelihood, elasticity
         i = 0
         for aveConfig in aveConfigs:
             dataRange = (i*dataLen//len(aveConfigs), (i+1)*dataLen//len(aveConfigs))
-            eachScore = []
+            eachScore = [folder, calTime]
             model = BuildModelFromConfig(aveConfig)
             model.set_data_from_dataloader(dl, column_list=list(modelConfig.get("variables").keys()))
             for var_name in aveConfig.get("variables").keys():
