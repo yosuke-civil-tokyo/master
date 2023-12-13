@@ -6,7 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
+
 
 class DeepGenerativeModel(nn.Module):
     def __init__(self, z_dim=8):
@@ -202,7 +203,18 @@ def createAdjacencyMatrix(config, truthConfig):
 
     return adjacency_matrix
 
-def createTensorsFromConfigs(folder, truthConfig):
+def createBICScore(config, truthConfig):
+    variables = truthConfig["variables"]
+    num_vars = len(variables)
+    bic_scores = torch.zeros(num_vars)
+
+    var_to_idx = {var: idx for idx, var in enumerate(variables.keys())}
+    for var, details in variables.items():
+        bic_scores[var_to_idx[var]] = config["variables"][var]["BIC"]
+
+    return bic_scores
+
+def createTensorsFromConfigs(folder, truthConfig, addBIC=False):
     print("Loading configs from: ", folder)
     configs = []
     for modelNum in os.listdir(folder):
@@ -217,6 +229,10 @@ def createTensorsFromConfigs(folder, truthConfig):
 
     adjacency_matrices = [createAdjacencyMatrix(config, truthConfig) for config in configs]
     adjacency_matrices = torch.stack(adjacency_matrices)
+
+    if addBIC:
+        bic_scores = torch.tensor([createBICScore(config, truthConfig) for config in configs])
+        return adjacency_matrices, bic_scores
     return adjacency_matrices
 
 # function to check if the adjacency matrix has loops
@@ -234,6 +250,7 @@ def detectCycle(adjacency_matrix, node, visited, finished):
     finished[node] = True
     return False
 
+"""
 if __name__ == "__main__":
     folder = "data/modelData/model2/model2-objorder_optimization/"
     with open("data/modelData/model2/truth/truth.json", "r") as f:
@@ -241,6 +258,18 @@ if __name__ == "__main__":
     adjacency_matrices = createTensorsFromConfigs(folder, truthConfig=truthConfig)
     data_loader = DataLoader(adjacency_matrices, batch_size=8, shuffle=True)
     model = DeepGenerativeModel(z_dim=33)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    model.train(data_loader=data_loader, optimizer=optimizer, epochs=2000)
+    torch.save(model.state_dict(), os.path.join(folder, "model_state.pth"))
+"""
+if __name__ == "__main__":
+    folder = "data/modelData/model2/model2-objorder_optimization/"
+    with open("data/modelData/model2/truth/truth.json", "r") as f:
+        truthConfig = json.load(f)
+    adjacency_matrices, bic_scores = createTensorsFromConfigs(folder, truthConfig=truthConfig, addBIC=True)
+    TensorData = TensorDataset(adjacency_matrices, bic_scores)
+    data_loader = DataLoader(TensorData, batch_size=8, shuffle=True)
+    model = ConditionalVAE(z_dim=33)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     model.train(data_loader=data_loader, optimizer=optimizer, epochs=2000)
     torch.save(model.state_dict(), os.path.join(folder, "model_state.pth"))
