@@ -552,7 +552,7 @@ class ObjectNode(Variable):
     # generate data
     def generate(self, num_samples, start_node=None):
         update_ordering = self.ordering.copy()
-        if start_node:
+        if start_node is not None:
             update_ordering = update_ordering[update_ordering.index(start_node)+1:]
         for var_name in update_ordering:
             self.variables[var_name].generate(num_samples)
@@ -605,6 +605,40 @@ class ObjectNode(Variable):
             print("Error: Could not calculate elasticity.")
             print("This is mainly because the variable has no parents.")
         print("Elasticity: ", elasticity)"""
+
+    def calculate_mutual_information(self, q_var_name, p_var_name):
+        # check if q_var is reachable from p_var
+        if not self.reachable(p_var_name, q_var_name):
+            return 0
+        # Calculate the mutual information between two variables
+        q_var = self.find_variable(q_var_name)
+        p_var = self.find_variable(p_var_name)
+        q_data = q_var.get_data('input')
+        p_data = p_var.get_data('input')
+        q_states = q_var.get_states('input')
+        p_states = p_var.get_states('input')
+
+        # Calculate the joint distribution
+        joint_dist = np.zeros((q_states, p_states))
+        for i in range(len(q_data)):
+            joint_dist[q_data[i], p_data[i]] += 1
+
+        # Calculate the marginal distributions
+        q_marginal = np.sum(joint_dist, axis=1)
+        p_marginal = np.sum(joint_dist, axis=0)
+
+        joint_dist = joint_dist / len(q_data)
+        q_marginal = q_marginal / len(q_data)
+        p_marginal = p_marginal / len(q_data)
+
+        # Calculate the mutual information
+        mutual_information = 0
+        for i in range(q_states):
+            for j in range(p_states):
+                if joint_dist[i, j] > 0:
+                    mutual_information += joint_dist[i, j] * math.log2(joint_dist[i, j] / (q_marginal[i] * p_marginal[j]))
+
+        return mutual_information
 
     # Display the optimized structure
     def visualize_structure(self):

@@ -105,25 +105,13 @@ def getScore(config):
                 LLBICcol.append(variable+"_BIC")
                 eachScore.append(calculate_log_likelihood(model.find_variable(variable)))
                 eachScore.append(calculate_BIC(model.find_variable(variable)))
-            if folder == "truth":
-                tryTime = 1
-            else:
-                tryTime = 1
-            if "rand.csv" in modelPaths:
-                # read index file
-                randFilePath = os.path.join("data/modelData", modelName, "rand.csv")
-                randData = np.loadtxt(randFilePath, delimiter=",")
-            else:
-                randData = None
-            for controlVar in controlVars:
-                for changeRate in changeRates:
-                    print("controlVar: ", controlVar, "changeRate: ", changeRate)
-                    eachScore.append(model.evaluate(targetVar, controlVar=controlVar, changeRate=changeRate, type="elasticity", num_samples=dataLen, tryTime=tryTime, rand=randData, folderPath=folderPath))
-            i += 1
-            
+            model.generate(dataLen)
+            for variable in truthConfig.get("variables").keys():
+                LLBICcol.append(variable+"_sensitivity")
+                eachScore.append(model.calculate_mutual_information(targetVar, variable))
 
             # make it dataframe
-            score = pd.DataFrame(np.array([eachScore]), columns=["model", "timeTaken", "edgeAccuracy"]+ LLBICcol +["elasticity_"+controlVar+"_"+str(changeRate) for controlVar in controlVars for changeRate in changeRates])
+            score = pd.DataFrame(np.array([eachScore]), columns=["model", "timeTaken", "edgeAccuracy"]+ LLBICcol)
             with open(scoreFilePath, 'a') as file:
                 score.to_csv(file, header=firstData, index=False)
             firstData = False
@@ -291,6 +279,37 @@ def visualize(modelName, scoreList, criterion="log_likelihood", average="thres")
         plt.savefig(os.path.join("data/modelData", modelName, f"elasticity_specific_{specific_change_rate}_{average}.png"))
         plt.close()
 
+    elif criterion == "sensitivity":
+        LLBIC_columns = [col for col in scoreList.columns if col.endswith(f"_{criterion}")]
+        variables = sorted(list(set('_'.join(col.split('_')[:1]) for col in LLBIC_columns)))
+
+        # Sort variables based on truth model's mean value
+        truth_scores = scoreList[scoreList['model'] == 'truth'][LLBIC_columns].iloc[0]
+        sorted_vars = truth_scores.sort_values(ascending=False).index
+        renamed_vars = {var: f'V{i+1}' for i, var in enumerate(sorted_vars)}
+
+        # plot mean of sensitivity for each variable per model
+        plt.figure(figsize=(10, 6))
+        for modeltype in scoreList["model"].unique():
+            model_data = scoreList[scoreList["model"] == modeltype]
+            plot_data = []
+            i = 0
+            for sorted_var in sorted_vars:
+                variable_values = model_data[sorted_var].dropna()
+                mean_value = variable_values.mean()
+                plot_data.append((i, mean_value))
+                i += 1
+            x, means = zip(*plot_data)
+            plt.plot(x, means, label=f'{model_rename_dict[modeltype]} Mean Sensitivity', marker='o', color=color_dict[modeltype])
+        plt.xlabel('Variable')
+        plt.xticks(np.arange(0, len(sorted_vars), 5))
+        plt.ylabel('Sensitivity')
+        plt.legend()
+        plt.ylim([-0.005, 0.065])
+        plt.grid(True)
+        plt.savefig(os.path.join("data/modelData", modelName, f"sensitivity_{average}.png"))
+
+
 def calculate_log_likelihood(variable):
     data = variable.get_data('input')
     if variable.parents:
@@ -357,6 +376,6 @@ if __name__ == "__main__":
     # visualize
     visualize(config["modelName"], scoreList, criterion="log_likelihood", average=config["averageMethod"])
     visualize(config["modelName"], scoreList, criterion="BIC", average=config["averageMethod"])
-    visualize(config["modelName"], scoreList, criterion="elasticity", average=config["averageMethod"])
+    visualize(config["modelName"], scoreList, criterion="sensitivity", average=config["averageMethod"])
    # visualize(config["modelName"], scoreList, criterion="timeTaken", average=config["averageMethod"])
     visualize(config["modelName"], scoreList, criterion="edgeAccuracy", average=config["averageMethod"])

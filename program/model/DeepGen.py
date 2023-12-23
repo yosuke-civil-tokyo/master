@@ -2,6 +2,7 @@
 import json
 import os
 from collections import deque
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -83,6 +84,7 @@ class DeepGenerativeModel(nn.Module):
     def sample(self, num_samples):
         with torch.no_grad():
             samples = []
+            last_sample = torch.zeros(self.z_dim, self.z_dim)
             while len(samples) < num_samples:
                 z = torch.randn(1, self.z_dim)
                 sample = self._decoder(z)
@@ -94,7 +96,11 @@ class DeepGenerativeModel(nn.Module):
                 visited = torch.zeros(self.z_dim)
                 finished = torch.zeros(self.z_dim)
                 if not detectCycle(sample, 0, visited, finished):
+                    if all((sample == last_sample).flatten()):
+                        print("same as last sample")
+                        continue
                     samples.append(sample)
+                    last_sample = sample
                     print("sampled: ", len(samples))
             samples = torch.stack(samples)
         return samples
@@ -163,6 +169,7 @@ class ConditionalVAE(nn.Module):
     def sample_with_good_BIC(self, num_samples, bic_score):
         with torch.no_grad():
             samples = []
+            last_sample = torch.zeros(self.z_dim, self.z_dim)
             while len(samples) < num_samples:
                 z = torch.randn(1, self.z_dim)
                 sample = self._decoder(z, bic_score)
@@ -174,23 +181,44 @@ class ConditionalVAE(nn.Module):
                 visited = torch.zeros(self.z_dim)
                 finished = torch.zeros(self.z_dim)
                 if not detectCycle(sample, 0, visited, finished):
+                    if all((sample == last_sample).flatten()):
+                        print("same as last sample")
+                        continue
                     samples.append(sample)
+                    last_sample = sample
                     print("sampled: ", len(samples))
             samples = torch.stack(samples)
         return samples
     
-    def sample_with_random_bic(self, num_samples, bic_score_range):
+    def sample_with_random_bic(self, num_samples, bic_score_range=[1.8, 2.2]):
         with torch.no_grad():
             samples = []
-            while len(samples) < num_samples:
+            last_sample = torch.zeros(self.z_dim, self.z_dim)
+            i = 0
+            while (len(samples) < num_samples) & (i < 50000):
+                i += 1
                 z = torch.randn(1, self.z_dim)
-                # Sample a random BIC score within a given range
-                random_bic = torch.FloatTensor(1, self.z_dim).uniform_(*bic_score_range)
-                sample = self._decoder(z, random_bic)
-                # Process the sample as needed
-                sample = sample.squeeze(0).round().numpy().astype(int)
-                samples.append(sample)
-            samples = torch.stack([torch.tensor(s) for s in samples])
+                bic_score = torch.unsqueeze(torch.tensor([random.uniform(*bic_score_range) for i in range(self.z_dim)]), 0)
+                sample = self._decoder(z, bic_score)
+                sample = sample.squeeze(0)
+                sample = sample.round()
+                sample = sample.numpy()
+                sample = sample.astype(int)
+                sample = torch.tensor(sample)
+                visited = torch.zeros(self.z_dim)
+                finished = torch.zeros(self.z_dim)
+                if not detectCycle(sample, 0, visited, finished):
+                    i = 0
+                    if all((sample == last_sample).flatten()):
+                        print("same as last sample")
+                        continue
+                    samples.append(sample)
+                    last_sample = sample
+                    print("sampled: ", len(samples))
+            if i == 50000:
+                print("reached max iteration")
+                return None
+            samples = torch.stack(samples)
         return samples
 
 def createAdjacencyMatrix(config, truthConfig):
@@ -256,7 +284,7 @@ def detectCycle(adjacency_matrix, node, visited, finished):
     finished[node] = True
     return False
 
-
+"""
 if __name__ == "__main__":
     folder = "data/modelData/model2/model2-objorder_optimization/"
     with open("data/modelData/model2/truth/truth.json", "r") as f:
@@ -274,9 +302,8 @@ if __name__ == "__main__":
         truthConfig = json.load(f)
     adjacency_matrices, bic_scores = createTensorsFromConfigs(folder, truthConfig=truthConfig, addBIC=True)
     TensorData = TensorDataset(adjacency_matrices, bic_scores)
-    data_loader = DataLoader(TensorData, batch_size=8, shuffle=True)
+    data_loader = DataLoader(TensorData, batch_size=4, shuffle=True)
     model = ConditionalVAE(z_dim=33)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     model.train(data_loader=data_loader, optimizer=optimizer, epochs=2000)
     torch.save(model.state_dict(), os.path.join(folder, "model_state_condition.pth"))
-"""
