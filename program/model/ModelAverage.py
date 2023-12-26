@@ -36,7 +36,7 @@ def bestChoice(configs, truthConfig=None, model_num=1):
     startTime = time.time()
     aveConfigs = []
     for i in range(model_num):
-        useConfigs = random.choices(configs, k=int(len(configs)*0.6))
+        useConfigs = random.choices(configs, k=int(len(configs)))
         scores = [config.get("score") for config in useConfigs]
         bestConfig = useConfigs[np.argmax(scores)]
 

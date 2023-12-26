@@ -70,8 +70,12 @@ def getScore(config):
                     scores.append(calculate_BIC(model.find_variable(variable)))
                 model.generate(dataLen)
                 for variable in truthConfig.get("variables").keys():
-                    LLBICcol.append(variable+"_sensitivity")
-                    scores.append(model.calculate_mutual_information(targetVar, variable))
+                    for variable2 in truthConfig.get("variables").keys():
+                        LLBICcol.append(variable+"_"+variable2+"_sensitivity")
+                        if variable == variable2:
+                            scores.append(0)
+                        else:
+                            scores.append(model.calculate_mutual_information(variable2, variable))
                 
                 # make it dataframe
                 scores = pd.DataFrame(np.array([scores]), columns=["model", "timeTaken", "edgeAccuracy"]+ LLBICcol)
@@ -308,34 +312,42 @@ def visualize(modelName, scoreList, criterion="log_likelihood"):
         plt.close()
     
     elif criterion == "sensitivity":
+        # data col name is "fromVar_targetVar_sensitivity"
         LLBIC_columns = [col for col in scoreList.columns if col.endswith(f"_{criterion}")]
-        variables = sorted(list(set('_'.join(col.split('_')[:1]) for col in LLBIC_columns)))
+        variables = sorted(list(set(col.split('_')[0] for col in LLBIC_columns)))
 
         # Sort variables based on truth model's mean value
         truth_scores = scoreList[scoreList['model'] == 'truth'][LLBIC_columns].iloc[0]
         sorted_vars = truth_scores.sort_values(ascending=False).index
         renamed_vars = {var: f'V{i+1}' for i, var in enumerate(sorted_vars)}
 
-        # plot mean of sensitivity for each variable per model
-        plt.figure(figsize=(10, 6))
+        # plot neab of "fromVar_targetVar_sensitivity" for each model
+        # plot is heatmap, x-axis is fromVar, y-axis is targetVar, color is sensitivity
         for modeltype in scoreList["model"].unique():
+            plt.figure(figsize=(10, 6))
             model_data = scoreList[scoreList["model"] == modeltype]
             plot_data = []
-            i = 0
-            for sorted_var in sorted_vars:
-                variable_values = model_data[sorted_var].dropna()
-                mean_value = variable_values.mean()
-                plot_data.append((i, mean_value))
-                i += 1
-            x, means = zip(*plot_data)
-            plt.plot(x, means, label=f'{model_rename_dict[modeltype]} Mean Sensitivity', marker='o', color=color_dict[modeltype])
-        plt.xlabel('Variable')
-        plt.xticks(np.arange(0, len(sorted_vars), 5))
-        plt.ylabel('Sensitivity')
-        plt.ylim([-0.005, 0.065])
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(os.path.join("data/modelData", modelName, f"sensitivity.png"))
+            for fromVar in variables:
+                for targetVar in variables:
+                    col_name = f"{fromVar}_{targetVar}_sensitivity"
+                    sensitivity_values = model_data[col_name].dropna()
+                    mean_value = sensitivity_values.mean()
+                    plot_data.append((fromVar, targetVar, mean_value))
+            x, y, means = zip(*plot_data)
+            fig, ax = plt.subplots()
+            cmap = plt.cm.cool
+            cmap.set_under(color='white')
+            heatmap = ax.pcolor(np.array(means).reshape(len(variables), len(variables)), cmap=cmap, norm=plt.Normalize(vmin=1e-6, vmax=0.5))
+            ax.set_xticks(np.arange(len(variables)) + 0.5, minor=False)
+            ax.set_yticks(np.arange(len(variables)) + 0.5, minor=False)
+            ax.set_xticklabels(variables, minor=False, rotation=90)
+            ax.set_yticklabels(variables, minor=False)
+            plt.title(f'{modeltype} - {criterion}')
+            plt.colorbar(heatmap)
+            plt.savefig(os.path.join("data/modelData", modelName, f"{criterion}_{model_rename_dict[modeltype]}.png"))
+
+
+
 
 
 def calculate_log_likelihood(variable):
