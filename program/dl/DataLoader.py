@@ -172,7 +172,7 @@ class DataLoader:
         # create a list, of schedule row
         # let's do it in parallel
         scheduleRowList = []
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        with ThreadPoolExecutor(max_workers=16) as executor:
             scheduleRowList = executor.map(self.make_schedule_row, scheduleList, repeat(["PersonID"] + onetime_variables), repeat(trip_variables), repeat(maximum_number_of_trips))
         
         # make columns
