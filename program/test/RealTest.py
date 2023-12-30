@@ -9,6 +9,7 @@ from cfg.RealCase import Configs
 from dl.DataLoader import make_dataloader
 from model.OOBN import ObjectNode
 from model.BN import Variable
+from model.DBN import DynamicNode
 
 # example test case
 def exTest(config, flag=0):
@@ -39,7 +40,7 @@ def exTest(config, flag=0):
     print(dl.pt_data.head(10))
     print(dl.pt_data.columns)
 
-    """# use config["numrows"] to limit the number of rows
+    # use config["numrows"] to limit the number of rows
     dl.pt_data = dl.pt_data[:config["numrows"]]
     dl.train_test_split()
     dl.pt_data = dl.train_data
@@ -51,7 +52,11 @@ def exTest(config, flag=0):
     for obj_conf in object_configs:
         print(f"Making {obj_conf['name']}...")
         obj_columns = [var for var in obj_conf["variables"]]  # Handle renamed columns
-        objects[obj_conf['name']] = ObjectNode(obj_conf['name'], {})
+        if obj_conf.get("dynamic", False):
+            objects[obj_conf['name']] = DynamicNode(obj_conf['name'], {})
+            objects[obj_conf['name']].set_use_row(dl.pt_data["TripNumber"].values)
+        else:
+            objects[obj_conf['name']] = ObjectNode(obj_conf['name'], {})
         objects[obj_conf['name']].set_data_from_dataloader(dl, obj_columns)
 
         # If the object has defined input/output variables, set them
@@ -106,7 +111,7 @@ def exTest(config, flag=0):
 
 
         # save the model
-        objects.get("obj1").save_model_parameters(case_name+"/pred_"+str(flag))"""
+        objects.get("obj1").save_model_parameters(case_name+"/pred_"+str(flag))
 
 
 
