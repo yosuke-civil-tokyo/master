@@ -23,8 +23,8 @@ class ObjectNode(Variable):
         super().__init__(name, states=None) 
         self.name = name
         self.variables = variables
-        self.input = []
-        self.output = name
+        self.inputs = []
+        self.outputs = []
         self.input_data = self.data
         self.output_data = self.data
         self.input_states = self.states
@@ -37,15 +37,15 @@ class ObjectNode(Variable):
         if data_type == 'input':
             self.input_data = np.array(data_array)
             self.input_states=int(np.max(data_array) + 1)
-            self.input.append(variable_name)
+            self.inputs.append(variable_name)
         elif data_type == 'output':
             self.output_data = np.array(data_array)
             self.output_states=int(np.max(data_array) + 1)
-            self.output = variable_name
+            self.outputs.append(variable_name)
 
     def get_variables(self, data_type='input'):
         if data_type == 'input':
-            return {var_name: self.variables[var_name] for var_name in self.input}
+            return {var_name: self.variables[var_name] for var_name in self.inputs}
         
     def find_variable(self, var_name):
         # Check if the variable is directly in this object
@@ -134,14 +134,14 @@ class ObjectNode(Variable):
         name_to_parents = {}
 
         for var_name in ordering:
-            if var_name in self.input:
+            if var_name in self.inputs:
                 continue
 
             preceding_vars = ordering[:ordering.index(var_name)]
             variable = self.variables[var_name]
             # if the variable is an object node, iterate over its input variables
             if isinstance(variable, ObjectNode):
-                for input_var_name in variable.input:
+                for input_var_name in variable.inputs:
                     input_variable = variable.variables[input_var_name]
                     # assuming that the input variable is not an object node
                     best_parents, best_cpt = self.find_optimal_parents(input_variable, preceding_vars)
@@ -161,7 +161,7 @@ class ObjectNode(Variable):
         for variable in self.variables.values():
             if isinstance(variable, ObjectNode):
                 # calculate the score for each input variable in the object node
-                for input_var_name in variable.input:
+                for input_var_name in variable.inputs:
                     input_variable = variable.variables[input_var_name]
                     score += input_variable.BIC_sep()
             else:
@@ -193,14 +193,14 @@ class ObjectNode(Variable):
     def update_structure(self, ordering):
         for var_name in ordering:
             # skip if the variable is input type in this object node
-            if var_name in self.input:
+            if var_name in self.inputs:
                 continue
 
             variable = self.variables[var_name]
             # if the variable is an object node, iterate over its input variables
             if isinstance(variable, ObjectNode):
                 preceding_vars = ordering[:ordering.index(var_name)]
-                for input_var_name in variable.input:
+                for input_var_name in variable.inputs:
                     input_variable = variable.variables[input_var_name]
                     # assuming that the input variable is not an object node
                     self.set_optimal_parents(input_variable, preceding_vars)
@@ -217,9 +217,18 @@ class ObjectNode(Variable):
         
         LL0 = self.calculate_LL0(variable)
 
-        for r in range(min(len(preceding_vars) + 1, 3)):
+        preceding_vars_variable = []
+        for preceding_var in preceding_vars:
+            if isinstance(preceding_var, ObjectNode):
+                for output_var_name in preceding_var.outputs:
+                    output_variable = preceding_var.variables[output_var_name]
+                    preceding_vars_variable.append(output_variable)
+            else:
+                preceding_vars_variable.append(preceding_var)
+
+        for r in range(min(len(preceding_vars_variable) + 1, 3)):
             improved_in_r = False
-            for subset in combinations(preceding_vars, r):
+            for subset in combinations(preceding_vars_variable, r):
                 parent_names = list(subset)
                 parents = [self.find_variable(parent_name) for parent_name in parent_names]
                 cpt = variable.estimate_cpt_with_parents(parents, self.variables)
@@ -247,11 +256,20 @@ class ObjectNode(Variable):
         best_score = float('-inf')
         
         LL0 = self.calculate_LL0(variable)
+
+        preceding_vars_variable = []
+        for preceding_var in preceding_vars:
+            if isinstance(preceding_var, ObjectNode):
+                for output_var_name in preceding_var.outputs:
+                    output_variable = preceding_var.variables[output_var_name]
+                    preceding_vars_variable.append(output_variable)
+            else:
+                preceding_vars_variable.append(preceding_var)
         
-        for r in range(min(len(preceding_vars) + 1, 3)):
+        for r in range(min(len(preceding_vars_variable) + 1, 3)):
             improved_in_r = False
-            for subset in combinations(preceding_vars, r):
-                candidate_parents = [self.variables[var] for var in subset]
+            for subset in combinations(preceding_vars_variable, r):
+                candidate_parents = [self.find_variable(var) for var in subset]
                 variable.set_parents(candidate_parents)
                 variable.estimate_cpt()
 
@@ -644,7 +662,7 @@ class ObjectNode(Variable):
                 # Otherwise, extract the variable's parameters as usual
                 model_params["variables"][var_name] = {
                     "num_states": variable.states,
-                    "parents": [parent.output for parent in variable.parents],
+                    "parents": [parent.name for parent in variable.parents],
                     "cpt": variable.cpt.tolist() if variable.cpt is not None else None,
                     "BIC": variable.BIC_sep(),
                 }

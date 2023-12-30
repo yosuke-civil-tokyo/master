@@ -14,8 +14,8 @@ class DynamicNode(ObjectNode):
         super().__init__(name)
         self.name = name
         self.variables = variables
-        self.input = []
-        self.output = name
+        self.inputs = []
+        self.outputs = []
         self.input_data = self.data
         self.output_data = self.data
         self.input_states = self.states
