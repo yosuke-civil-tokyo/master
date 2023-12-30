@@ -43,7 +43,7 @@ Configs = {
         "objects": [
             {"name": "obj1",
               "variables": ["Age", "Companion", "Purpose", "PurposeType"],
-              "fix": {"Age": 0, "Purpose": 1},
+              "fix": {0: "Age", 1: "Purpose"},
               "objs": ["Mode"]
             },
             {"name": "Mode",
@@ -96,7 +96,7 @@ Configs = {
         "objects": [
             {"name": "obj1",
               "variables": ["Age", "Companion", "Purpose", "PurposeType"],
-              "fix": {"Age": 0, "Purpose": 1},
+              "fix": {0: "Age", 1: "Purpose"},
               "objs": ["Mode"]
             },
             {"name": "Mode",

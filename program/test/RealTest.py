@@ -74,7 +74,7 @@ def exTest(config, flag=0):
 
     # Perform structure optimization
     for flag in range(int(config.get("flags", 1))):
-        for obj_conf in object_configs:
+        for obj_conf in reversed(object_configs):
             fixed_positions = {k: v for k, v in obj_conf["fix"].items()}
             print(f"Structure optimization for {obj_conf['name']}...")
             objects[obj_conf['name']].order_optimization(fixed_positions)
