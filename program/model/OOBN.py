@@ -266,6 +266,15 @@ class ObjectNode(Variable):
                     input_variable = variable.variables[input_var_name]
                     # assuming that the input variable is not an object node
                     self.set_optimal_parents(input_variable, preceding_vars)
+
+            elif isinstance(variable, DynamicNode):
+                preceding_vars = ordering[:ordering.index(var_name)]
+                used_row = variable.use_row
+                for input_var_name in variable.input:
+                    input_variable = variable.variables[input_var_name]
+                    # assuming that the input variable is not an object node
+                    self.set_optimal_parents(input_variable, preceding_vars, used_row=used_row)
+
             else:
                 preceding_vars = ordering[:ordering.index(var_name)]
                 self.set_optimal_parents(variable, preceding_vars)
@@ -301,7 +310,7 @@ class ObjectNode(Variable):
         """
         return best_parents, best_cpt
     
-    def set_optimal_parents(self, variable, preceding_vars):
+    def set_optimal_parents(self, variable, preceding_vars, used_row=None):
         # print("Finding optimal parents for variable: ", variable.name)
         best_parents = []
         best_score = float('-inf')
