@@ -88,6 +88,55 @@ class Variable:
         cpt /= cpt.sum(axis=-1, keepdims=True)
         cpt = np.nan_to_num(cpt)
         return cpt
+
+    def BIC_sep(self):
+        N = len(self.get_data('input'))
+        k = self.cpt.size
+        log_likelihood = self.calculate_log_likelihood()
+        score = log_likelihood - (k / 2) * math.log(N)
+
+        return score
+
+    def ll_sep(self):
+        score = self.calculate_log_likelihood()
+
+        return score
+
+    def calculate_log_likelihood(self):
+        data = self.get_data('input')
+        if self.parents:
+            # When there are parent variables
+            indices = np.stack([parent.get_data('output') for parent in self.parents] + [data], 0)
+            # get the probability of each data point
+            probs = self.cpt[tuple(indices)]
+        else:
+            # When there are no parent variables (independent variable)
+            probs = self.cpt[data]
+
+        log_likelihood = np.sum(np.log(probs + 1e-6))
+        return log_likelihood
+
+    def temp_BIC_score(self, parents, cpt):
+        N = len(self.get_data('input'))
+        k = cpt.size
+        log_likelihood = self.temp_log_likelihood(parents, cpt)
+        score = log_likelihood - (k / 2) * math.log(N)
+
+        return score
+
+    def temp_log_likelihood(self, parents, cpt):
+        data = self.get_data('input')
+        if parents:
+            # When there are parent variables
+            indices = np.stack([parent.get_data('output') for parent in parents] + [data], 0)
+            # get the probability of each data point
+            probs = cpt[tuple(indices)]
+        else:
+            # When there are no parent variables (independent variable)
+            probs = cpt[data]
+
+        log_likelihood = np.sum(np.log(probs + 1e-6))
+        return log_likelihood
         
     # to sample
     def predict(self, parent_data=None):

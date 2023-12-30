@@ -152,98 +152,36 @@ class ObjectNode(Variable):
                 name_to_parents[var_name] = best_parents
                 name_to_cpt[var_name] = best_cpt
 
-        total_score = sum(self.temp_BIC_score(var_name, name_to_parents, name_to_cpt[var_name]) for var_name in name_to_parents.keys())
+        total_score = sum(self.find_variable(var_name).temp_BIC_score([self.find_variable(parent_name) for parent_name in name_to_parents[var_name]], name_to_cpt[var_name]) for var_name in name_to_parents.keys())
         return total_score
-
-    def temp_BIC_score(self, var_name, name_to_parents, cpt):
-        # Calculate the BIC score for a given variable, its parents, and its CPT
-        variable = self.find_variable(var_name)
-        N = len(variable.get_data('input'))
-        k = cpt.size
-        log_likelihood = self.temp_calculate_log_likelihood(var_name, name_to_parents, cpt)
-        score = log_likelihood - (k / 2) * math.log(N)
-        return score
-
-    def temp_calculate_log_likelihood(self, var_name, name_to_parents, cpt):
-        # Implement the logic similar to calculate_log_likelihood but use the provided CPT and parent names
-        variable = self.find_variable(var_name)
-        data = variable.get_data('input')
-        if name_to_parents[var_name]:
-            indices = np.stack([self.variables[parent_name].get_data('output') for parent_name in name_to_parents[var_name]] + [data], 0)
-            probs = cpt[tuple(indices)]
-        else:
-            probs = cpt[data]
-        log_likelihood = np.sum(np.log(probs))
-        return log_likelihood
 
     def BIC_all(self):
         score = 0
         
         for variable in self.variables.values():
-            score += self.BIC_sep(variable)
+            if isinstance(variable, ObjectNode):
+                # calculate the score for each input variable in the object node
+                for input_var_name in variable.input:
+                    input_variable = variable.variables[input_var_name]
+                    score += input_variable.BIC_sep()
+            else:
+                score += variable.BIC_sep()
         
-        return score
-    
-    def BIC_sep(self, variable):
-        # when the variable is an object node
-        if isinstance(variable, ObjectNode):
-            # calculate the score for each input variable in the object node
-            score = 0
-            for input_var_name in variable.input:
-                input_variable = variable.variables[input_var_name]
-                score += self.BIC_sep(input_variable)
-
-        else:
-            # when the variable is not an object node
-            N = len(variable.get_data('input'))
-
-            k = variable.cpt.size
-            log_likelihood = self.calculate_log_likelihood(variable)
-            score = log_likelihood - (k / 2) * math.log(N)
-            
-            # print("CPT size: ", k)
-            # print("Log Likelihood: ", log_likelihood)
-
         return score
     
     def ll_all(self):
         score = 0
         
         for variable in self.variables.values():
-            score += self.ll_sep(variable)
+            if isinstance(variable, ObjectNode):
+                # calculate the score for each input variable in the object node
+                for input_var_name in variable.input:
+                    input_variable = variable.variables[input_var_name]
+                    score += input_variable.ll_sep()
+            else:
+                score += variable.ll_sep()
         
         return score
-    
-    def ll_sep(self, variable):
-        # when the variable is an object node
-        if isinstance(variable, ObjectNode):
-            # calculate the score for each input variable in the object node
-            score = 0
-            for input_var_name in variable.input:
-                input_variable = variable.variables[input_var_name]
-                score += self.ll_sep(input_variable)
-
-        else:
-            # when the variable is not an object node
-            score = self.calculate_log_likelihood(variable)
-            
-            # print("Log Likelihood: ", score)
-
-        return score
-
-    def calculate_log_likelihood(self, variable):
-        data = variable.get_data('input')
-        if variable.parents:
-            # When there are parent variables
-            indices = np.stack([parent.get_data('output') for parent in variable.parents] + [data], 0)
-            # get the probability of each data point
-            probs = variable.cpt[tuple(indices)]
-        else:
-            # When there are no parent variables (independent variable)
-            probs = variable.cpt[data]
-
-        log_likelihood = np.sum(np.log(probs + 1e-6))
-        return log_likelihood
     
     def calculate_LL0(self, variable):
         # For a variable with k states, the log-likelihood under the null model is N * log(1/k)
@@ -267,14 +205,6 @@ class ObjectNode(Variable):
                     # assuming that the input variable is not an object node
                     self.set_optimal_parents(input_variable, preceding_vars)
 
-            elif isinstance(variable, DynamicNode):
-                preceding_vars = ordering[:ordering.index(var_name)]
-                used_row = variable.use_row
-                for input_var_name in variable.input:
-                    input_variable = variable.variables[input_var_name]
-                    # assuming that the input variable is not an object node
-                    self.set_optimal_parents(input_variable, preceding_vars, used_row=used_row)
-
             else:
                 preceding_vars = ordering[:ordering.index(var_name)]
                 self.set_optimal_parents(variable, preceding_vars)
@@ -292,7 +222,7 @@ class ObjectNode(Variable):
             for subset in combinations(preceding_vars, r):
                 parent_names = list(subset)
                 cpt = variable.estimate_cpt_with_parents(parent_names, self.variables)
-                score = self.temp_BIC_score(variable.name, {variable.name: parent_names}, cpt)
+                score = variable.temp_BIC_score([self.find_variable(parent_name) for parent_name in parent_names], cpt)
                 if score > best_score:
                     # print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
                     improved_in_r = True
@@ -324,7 +254,7 @@ class ObjectNode(Variable):
                 variable.set_parents(candidate_parents)
                 variable.estimate_cpt()
 
-                score = self.BIC_sep(variable)
+                score = variable.BIC_sep()
 
                 # print("Candidate Parents: ", [self.variables[var].name for var in subset])
                 # print("Score: ", score)
@@ -341,7 +271,7 @@ class ObjectNode(Variable):
         variable.estimate_cpt()
 
         # check likelihood ratio
-        LL = self.calculate_log_likelihood(variable)
+        LL = variable.calculate_log_likelihood()
         likelihood_ratio = (LL0 - LL) / LL0
         # print("Likelihood Ratio: ", likelihood_ratio)
 
@@ -490,28 +420,28 @@ class ObjectNode(Variable):
     # calculate the BIC gain
     def calculate_bic_gain(self, operation):
         if operation[2] == "add":
-            score = -1 * self.BIC_sep(self.variables[operation[0]])
+            score = -1 * self.variables[operation[0]].BIC_sep()
             self.variables[operation[0]].parents.append(self.variables[operation[1]])
             self.variables[operation[0]].estimate_cpt()
-            score += self.BIC_sep(self.variables[operation[0]])
+            score += self.variables[operation[0]].BIC_sep()
             self.variables[operation[0]].parents.remove(self.variables[operation[1]])
             self.variables[operation[0]].estimate_cpt()
             return score
         elif operation[2] == "remove":
-            score = -1 * self.BIC_sep(self.variables[operation[0]])
+            score = -1 * self.variables[operation[0]].BIC_sep()
             self.variables[operation[0]].parents.remove(self.variables[operation[1]])
             self.variables[operation[0]].estimate_cpt()
-            score += self.BIC_sep(self.variables[operation[0]])
+            score += self.variables[operation[0]].BIC_sep()
             self.variables[operation[0]].parents.append(self.variables[operation[1]])
             self.variables[operation[0]].estimate_cpt()
             return score
         elif operation[2] == "reverse":
-            score = -1 * (self.BIC_sep(self.variables[operation[0]]) + self.BIC_sep(self.variables[operation[1]]))
+            score = -1 * (self.variables[operation[0]].BIC_sep() + self.variables[operation[1]].BIC_sep())
             self.variables[operation[0]].parents.remove(self.variables[operation[1]])
             self.variables[operation[1]].parents.append(self.variables[operation[0]])
             self.variables[operation[0]].estimate_cpt()
             self.variables[operation[1]].estimate_cpt()
-            score += self.BIC_sep(self.variables[operation[0]]) + self.BIC_sep(self.variables[operation[1]])
+            score += self.variables[operation[0]].BIC_sep() + self.variables[operation[1]].BIC_sep()
             self.variables[operation[0]].parents.append(self.variables[operation[1]])
             self.variables[operation[1]].parents.remove(self.variables[operation[0]])
             self.variables[operation[0]].estimate_cpt()
@@ -714,7 +644,7 @@ class ObjectNode(Variable):
                     "num_states": variable.states,
                     "parents": [parent.output for parent in variable.parents],
                     "cpt": variable.cpt.tolist() if variable.cpt is not None else None,
-                    "BIC": self.BIC_sep(variable)
+                    "BIC": variable.BIC_sep(),
                 }
                 model_params["objects"][self.name]["variables"].append(var_name)
         return model_params

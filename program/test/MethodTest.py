@@ -56,7 +56,7 @@ def exTest(config):
     for obj_conf in object_configs:
         fixed_positions = {change_name_dict.get(k, k): v for k, v in obj_conf["fix"].items()}
         print(f"Structure optimization for {obj_conf['name']}...")
-        objects[obj_conf['name']].greedy_structure_learning()
+        objects[obj_conf['name']].order_optimization()
 
     # Visualize the structures
     for obj_conf in object_configs:
