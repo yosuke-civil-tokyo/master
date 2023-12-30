@@ -161,6 +161,7 @@ class DataLoader:
         if case_name and os.path.exists(intermediate_file_path):
             print(f"Loading intermediate data from {intermediate_file_path}")
             self.pt_data = pd.read_csv(intermediate_file_path, dtype=int)
+            return None
         
         # create a list, of subset of self.pt_data with same personID
         personGroup = self.pt_data.groupby("PersonID")
@@ -189,6 +190,8 @@ class DataLoader:
             print(f"Saving intermediate data to {intermediate_file_path}")
             os.makedirs('./data/midData', exist_ok=True)
             scheduleTable.to_csv(intermediate_file_path, index=False)
+
+        return None
 
     # make a schedule row, consists of multiple trips
     def make_schedule_row(self, schedule, onetime_variables, trip_variables, maximum_number_of_trips):

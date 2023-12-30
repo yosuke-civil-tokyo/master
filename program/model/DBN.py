@@ -10,8 +10,8 @@ from model.OOBN import ObjectNode
 # so that it uses data of person who conducted the activity
 # (like people who has done i-th activity for i-th activity object)
 class DynamicNode(ObjectNode):
-    def __init__(self, name, states, object_class, object_name, object_states):
-        super().__init__(name, states=None) 
+    def __init__(self, name, variables={}):
+        super().__init__(name)
         self.name = name
         self.variables = variables
         self.input = []

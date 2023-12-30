@@ -221,8 +221,9 @@ class ObjectNode(Variable):
             improved_in_r = False
             for subset in combinations(preceding_vars, r):
                 parent_names = list(subset)
-                cpt = variable.estimate_cpt_with_parents(parent_names, self.variables)
-                score = variable.temp_BIC_score([self.find_variable(parent_name) for parent_name in parent_names], cpt)
+                parents = [self.find_variable(parent_name) for parent_name in parent_names]
+                cpt = variable.estimate_cpt_with_parents(parents, self.variables)
+                score = variable.temp_BIC_score(parents, cpt)
                 if score > best_score:
                     # print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
                     improved_in_r = True
@@ -622,6 +623,7 @@ class ObjectNode(Variable):
     
     def save_model_parameters(self, filename):
         model_params = self._extract_model_params()
+        os.makedirs(os.path.join("data", "modelData", os.path.dirname(filename)), exist_ok=True)
         with open(os.path.join("data", "modelData", filename+".json"), 'w') as file:
             json.dump(model_params, file, indent=4)
 

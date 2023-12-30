@@ -73,9 +73,7 @@ class Variable:
         self.cpt /= self.cpt.sum(axis=-1, keepdims=True)
         self.cpt = np.nan_to_num(self.cpt)
 
-    def estimate_cpt_with_parents(self, parent_names, variables_dict):
-        parents = [variables_dict[name] for name in parent_names]
-
+    def estimate_cpt_with_parents(self, parents, variables_dict):
         num_states = [parent.get_states('output') for parent in parents] + [self.get_states('input')]
         
         # Initialize CPT with zeros
