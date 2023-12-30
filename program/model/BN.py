@@ -61,7 +61,10 @@ class Variable:
         self.cpt = np.zeros(num_states)
         
         # Compute the indices for each data point
-        indices = np.vstack([parent.get_data('output') for parent in self.parents] + [self.get_data('input')])
+        if hasattr(self, 'use_row'):
+            indices = np.vstack([parent.get_data('output')[self.use_row] for parent in self.parents] + [self.get_data('input')[self.use_row]])
+        else:
+            indices = np.vstack([parent.get_data('output') for parent in self.parents] + [self.get_data('input')])
 
         # Vectorized calculation of counts
         np.add.at(self.cpt, tuple(indices), 1)
@@ -79,7 +82,10 @@ class Variable:
         cpt = np.zeros(num_states)
         
         # Compute the indices for each data point
-        indices = np.vstack([parent.get_data('output') for parent in parents] + [self.get_data('input')])
+        if hasattr(self, 'use_row'):
+            indices = np.vstack([parent.get_data('output')[self.use_row] for parent in parents] + [self.get_data('input')[self.use_row]])
+        else:
+            indices = np.vstack([parent.get_data('output') for parent in parents] + [self.get_data('input')])
 
         # Vectorized calculation of counts
         np.add.at(cpt, tuple(indices), 1)
@@ -90,7 +96,10 @@ class Variable:
         return cpt
 
     def BIC_sep(self):
-        N = len(self.get_data('input'))
+        if hasattr(self, 'use_row'):
+            N = np.sum(self.use_row)
+        else:
+            N = len(self.get_data('input'))
         k = self.cpt.size
         log_likelihood = self.calculate_log_likelihood()
         score = log_likelihood - (k / 2) * math.log(N)
@@ -103,10 +112,16 @@ class Variable:
         return score
 
     def calculate_log_likelihood(self):
-        data = self.get_data('input')
+        if hasattr(self, 'use_row'):
+            data = self.get_data('input')[self.use_row]
+        else:
+            data = self.get_data('input')
         if self.parents:
             # When there are parent variables
-            indices = np.stack([parent.get_data('output') for parent in self.parents] + [data], 0)
+            if hasattr(self, 'use_row'):
+                indices = np.stack([parent.get_data('output')[self.use_row] for parent in self.parents] + [data], 0)
+            else:
+                indices = np.stack([parent.get_data('output') for parent in self.parents] + [data], 0)
             # get the probability of each data point
             probs = self.cpt[tuple(indices)]
         else:
@@ -117,7 +132,10 @@ class Variable:
         return log_likelihood
 
     def temp_BIC_score(self, parents, cpt):
-        N = len(self.get_data('input'))
+        if hasattr(self, 'use_row'):
+            N = np.sum(self.use_row)
+        else:
+            N = len(self.get_data('input'))
         k = cpt.size
         log_likelihood = self.temp_log_likelihood(parents, cpt)
         score = log_likelihood - (k / 2) * math.log(N)
@@ -125,10 +143,16 @@ class Variable:
         return score
 
     def temp_log_likelihood(self, parents, cpt):
-        data = self.get_data('input')
+        if hasattr(self, 'use_row'):
+            data = self.get_data('input')[self.use_row]
+        else:
+            data = self.get_data('input')
         if parents:
             # When there are parent variables
-            indices = np.stack([parent.get_data('output') for parent in parents] + [data], 0)
+            if hasattr(self, 'use_row'):
+                indices = np.stack([parent.get_data('output')[self.use_row] for parent in parents] + [data], 0)
+            else:
+                indices = np.stack([parent.get_data('output') for parent in parents] + [data], 0)
             # get the probability of each data point
             probs = cpt[tuple(indices)]
         else:
