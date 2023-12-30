@@ -49,8 +49,8 @@ Configs = {
             {"name": "Mode",
               "variables": ["TripNumber", "WalkTime", "TrainTime", "Mode"],
               "input": ["TripNumber"],
-              "output": ["Mode"],
-              "fix": {0: "TripNumber", "4": "Mode"}
+              "output": ["Mode", "TripNumber"],
+              "fix": {0: "TripNumber", 4: "Mode"}
             }
         ],
         "numrows": 10000,
