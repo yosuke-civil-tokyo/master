@@ -83,5 +83,6 @@ Configs = {
             },
         ],
         "numrows": -1,
+        "flags": 300,
     }
 }
