@@ -202,7 +202,7 @@ class ObjectNode(Variable):
         for var_name in ordering:
             variable = self.variables[var_name]
             # if the variable is an object node, iterate over its input variables
-            print("set: ", var_name, " parents")
+            # print("set: ", var_name, " parents")
             if isinstance(variable, ObjectNode):
                 preceding_vars = ordering[:ordering.index(var_name)]
                 for input_var_name in variable.inputs:
@@ -289,7 +289,7 @@ class ObjectNode(Variable):
             if not improved_in_r:
                 break
         
-        print("variable: ", variable.name, " best parents: ", [parent for parent in best_parents])
+        # print("variable: ", variable.name, " best parents: ", [parent for parent in best_parents])
         variable.set_parents([self.find_variable(parent_name) for parent_name in best_parents])
         variable.set_cpt(best_cpt)
 
