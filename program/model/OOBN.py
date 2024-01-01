@@ -81,6 +81,14 @@ class ObjectNode(Variable):
         self.variables[variable.name] = variable
         variable.object_node = self
 
+    def initialize_structure(self):
+        for variable in self.variables.values():
+            if isinstance(variable, ObjectNode):
+                variable.initialize_structure()
+            else:
+                variable.parents = []
+                variable.cpt = None
+
     def order_optimization(self, fixed_positions=None):
         startTime = time.time()
         # check if any variable has to be fixed

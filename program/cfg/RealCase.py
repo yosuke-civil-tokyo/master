@@ -43,7 +43,7 @@ Configs = {
         "objects": [
             {"name": "obj1",
               "variables": ["TripNumber", "Age", "License"],
-              "fix": {3: "Trip1", 4: "Trip2", 5: "Trip3", 6: "Trip4", 7: "Trip5"},
+              "fix": {0: "Age", 3: "Trip1", 4: "Trip2", 5: "Trip3", 6: "Trip4", 7: "Trip5"},
               "objs": ["Trip1", "Trip2", "Trip3", "Trip4", "Trip5"]
             },
             {"name": "Trip1",

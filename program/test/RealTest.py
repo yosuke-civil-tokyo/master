@@ -112,6 +112,7 @@ def exTest(config, flag=0):
 
         # save the model
         objects.get("obj1").save_model_parameters(case_name+"/pred_"+str(flag))
+        objects.get("obj1").initialize_structure()
 
 
 
