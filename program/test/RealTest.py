@@ -54,7 +54,7 @@ def exTest(config, flag=0):
         obj_columns = [var for var in obj_conf["variables"]]  # Handle renamed columns
         if obj_conf.get("dynamic", False):
             objects[obj_conf['name']] = DynamicNode(obj_conf['name'], {})
-            objects[obj_conf['name']].set_use_row(dl.pt_data["TripNumber"].values)
+            objects[obj_conf['name']].set_use_row(dl.pt_data["TripNumber"].values, "TripNumber")
         else:
             objects[obj_conf['name']] = ObjectNode(obj_conf['name'], {})
         objects[obj_conf['name']].set_data_from_dataloader(dl, obj_columns)
