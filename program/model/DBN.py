@@ -23,13 +23,16 @@ class DynamicNode(ObjectNode):
         self.ordering = []
         self.calc_time = 0
         self.score = 0
+        self.manageVariable = None
 
-    def set_use_row(self, numOfTrips):
+    def set_use_row(self, numOfTrips, var=None):
         # i-th of activity is obtained from the name of the object
         i = int(self.name[-1])
         self.use_row = row_of_ith_activity(numOfTrips, i)
         for variable in self.variables:
             variable.use_row = self.use_row
+        
+        self.manageVariable = var
 
 # a function for specifying which row of DynamicNode is used for learning
 def row_of_ith_activity(numOfTrips, i):
