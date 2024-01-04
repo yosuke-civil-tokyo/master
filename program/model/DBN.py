@@ -39,15 +39,15 @@ class DynamicNode(ObjectNode):
     def generate(self, num_samples, start_node=None):
         manage_variable = self.object_node.find_variable(self.manage_variable_name)
         manage_data = manage_variable.get_data('output')
-        conducted_persons = (manage_data >= self.trip_num)
+        conducted_persons = (manage_data >= self.trip_num + 1)
 
         update_ordering = self.ordering.copy()
         if start_node is not None:
             update_ordering = update_ordering[update_ordering.index(start_node)+1:]
         for var_name in update_ordering:
             self.variables[var_name].generate(num_samples)
-            # row of the person who didn't conduct the i-th activity is set to -1
-            self.variables[var_name].data[~conducted_persons] = -1
+            # row of the person who didn't conduct the i-th activity is set to 0
+            self.variables[var_name].data[~conducted_persons] = 0
 
         return None
 
