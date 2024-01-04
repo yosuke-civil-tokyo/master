@@ -1,8 +1,8 @@
 \begin{thebibliography}{1}
 
-\bibitem{Nocedal&Wright}
-Jorge Nocedal and Strephan~J. Wright.
-\newblock {\em Numerical Optimization}.
-\newblock Springer New York, 2006.
+\bibitem{Baydin2018}
+At^^c4^^b1l^^c4^^b1m G^^c3^^bcne^^c2^^b8, G^^c3^^bcne^^c2^^b8s Baydin, Barak~A Pearlmutter, and Jeffrey~Mark Siskind.
+\newblock Automatic differentiation in machine learning: a survey.
+\newblock {\em Journal of Machine Learning Research}, Vol.~18, pp. 1--43, 2018.
 
 \end{thebibliography}
