@@ -3,6 +3,9 @@ import time
 import pandas as pd
 import numpy as np
 
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from itertools import repeat
+
 from model.BN import Variable
 from model.OOBN import ObjectNode
 
@@ -86,6 +89,9 @@ class DataLoader:
         # Read Zone data from CSV
         self.zone_data = pd.read_csv(zone_csv_file_path)
 
+    def concat_personID(self, table):
+        return table["整理番号：市区町村"].astype(str).str.zfill(4) + table["整理番号：ロット番号"].astype(str).str.zfill(1) + table["整理番号：世帯ＳＱ"].astype(str).str.zfill(5) + table["個人番号"].astype(str).str.zfill(1)
+
     # extract columns, and remove rows with NaN
     def extract_data(self, df, column_list):
         return df[column_list].dropna()
@@ -148,6 +154,59 @@ class DataLoader:
         self.test_data = test_data
         return train_data, test_data
     
+    # create a table, whose each row is a schedule, consists of multiple trips
+    def update_with_schedule_rows(self, case_name=None, onetime_variables=[], trip_variables=[], maximum_number_of_trips=5):
+        # Check if intermediate data exists
+        intermediate_file_path = f'./data/midData/{case_name}_schedule.csv'
+        if case_name and os.path.exists(intermediate_file_path):
+            print(f"Loading intermediate data from {intermediate_file_path}")
+            self.pt_data = pd.read_csv(intermediate_file_path, dtype=int)
+            return None
+        
+        # create a list, of subset of self.pt_data with same personID
+        personGroup = self.pt_data.groupby("PersonID")
+        scheduleList = [personGroup.get_group(x) for x in personGroup.groups]
+        scheduleList = [x.reset_index(drop=True) for x in scheduleList]
+
+        print("Num of person: ", len(scheduleList))
+
+        # create a list, of schedule row
+        # let's do it in parallel
+        scheduleRowList = []
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            scheduleRowList = executor.map(self.make_schedule_row, scheduleList, repeat(["PersonID"] + onetime_variables), repeat(trip_variables), repeat(maximum_number_of_trips))
+        
+        # make columns
+        scheduleCol = ["PersonID"] + onetime_variables
+        for i in range(maximum_number_of_trips):
+            scheduleCol += [f"Trip{i+1}_{x}" for x in trip_variables]
+
+        # create a table, whose each row is a schedule, consists of multiple trips
+        scheduleTable = pd.DataFrame(scheduleRowList, columns=scheduleCol)
+        self.pt_data = scheduleTable
+
+        # save intermediate data
+        if case_name:
+            print(f"Saving intermediate data to {intermediate_file_path}")
+            os.makedirs('./data/midData', exist_ok=True)
+            scheduleTable.to_csv(intermediate_file_path, index=False)
+
+        return None
+
+    # make a schedule row, consists of multiple trips
+    def make_schedule_row(self, schedule, onetime_variables, trip_variables, maximum_number_of_trips):
+        # initialize it with onetime_variables (mainly personal attributes)
+        scheduleRow = schedule[onetime_variables].iloc[0].values.tolist()
+        
+        # add trip variables
+        for i in range(maximum_number_of_trips):
+            if i < len(schedule):
+                scheduleRow += schedule[trip_variables].iloc[i].values.tolist()
+            else:
+                scheduleRow += [0] * len(trip_variables)
+        
+        return scheduleRow
+    
 
 # let's make simple los data for each trip
 def make_walk_car(
@@ -180,7 +239,8 @@ def make_dataloader(
         convert_dict_continuous=None,
         change_name_dict=None,
         case_name=None, 
-        return_table=False):
+        return_table=False,
+        include_person_id=False):
     dl = DataLoader()
 
     # Check if intermediate data exists
@@ -209,7 +269,11 @@ def make_dataloader(
     table = dl.make_los_table()
 
     print("descretization")
-    table = dl.fill_data(table, list(convert_dict.keys())+list(convert_dict_continuous.keys()))
+    used_col = list(convert_dict.keys())+list(convert_dict_continuous.keys())
+    if include_person_id:
+        table["PersonID"] = dl.concat_personID(table)
+        used_col.append("PersonID")
+    table = dl.fill_data(table, used_col)
     table = dl.discretize_dataframe(table, convert_dict)
     table = dl.discretize_dataframe_fromcon(table, convert_dict_continuous)
     table = table.rename(columns=change_name_dict).astype(int)

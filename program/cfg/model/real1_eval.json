@@ -1,0 +1,6 @@
+{
+    "modelName": "real1",
+    "averageMethod": "deepC",
+    "expTimes": 10,
+    "referConfig": "model1/pred_0.json"
+}

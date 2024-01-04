@@ -23,8 +23,8 @@ class ObjectNode(Variable):
         super().__init__(name, states=None) 
         self.name = name
         self.variables = variables
-        self.input = []
-        self.output = name
+        self.inputs = []
+        self.outputs = []
         self.input_data = self.data
         self.output_data = self.data
         self.input_states = self.states
@@ -37,15 +37,15 @@ class ObjectNode(Variable):
         if data_type == 'input':
             self.input_data = np.array(data_array)
             self.input_states=int(np.max(data_array) + 1)
-            self.input.append(variable_name)
+            self.inputs.append(variable_name)
         elif data_type == 'output':
             self.output_data = np.array(data_array)
             self.output_states=int(np.max(data_array) + 1)
-            self.output = variable_name
+            self.outputs.append(variable_name)
 
     def get_variables(self, data_type='input'):
         if data_type == 'input':
-            return {var_name: self.variables[var_name] for var_name in self.input}
+            return {var_name: self.variables[var_name] for var_name in self.inputs}
         
     def find_variable(self, var_name):
         # Check if the variable is directly in this object
@@ -81,6 +81,14 @@ class ObjectNode(Variable):
         self.variables[variable.name] = variable
         variable.object_node = self
 
+    def initialize_structure(self):
+        for variable in self.variables.values():
+            if isinstance(variable, ObjectNode):
+                variable.initialize_structure()
+            else:
+                variable.parents = []
+                variable.cpt = None
+
     def order_optimization(self, fixed_positions=None):
         startTime = time.time()
         # check if any variable has to be fixed
@@ -115,6 +123,9 @@ class ObjectNode(Variable):
                         improvement = True
 
         self.ordering = current_ordering
+        for var_name in self.ordering:
+            variable = self.variables[var_name]
+            # if the variable is an object node, iterate over its input variables
         self.update_structure(self.ordering)
         final_score = self.BIC_all()
         print("Final Score : ", final_score)
@@ -134,14 +145,11 @@ class ObjectNode(Variable):
         name_to_parents = {}
 
         for var_name in ordering:
-            if var_name in self.input:
-                continue
-
             preceding_vars = ordering[:ordering.index(var_name)]
             variable = self.variables[var_name]
             # if the variable is an object node, iterate over its input variables
             if isinstance(variable, ObjectNode):
-                for input_var_name in variable.input:
+                for input_var_name in variable.inputs:
                     input_variable = variable.variables[input_var_name]
                     # assuming that the input variable is not an object node
                     best_parents, best_cpt = self.find_optimal_parents(input_variable, preceding_vars)
@@ -152,98 +160,36 @@ class ObjectNode(Variable):
                 name_to_parents[var_name] = best_parents
                 name_to_cpt[var_name] = best_cpt
 
-        total_score = sum(self.temp_BIC_score(var_name, name_to_parents, name_to_cpt[var_name]) for var_name in name_to_parents.keys())
+        total_score = sum(self.find_variable(var_name).temp_BIC_score([self.find_variable(parent_name) for parent_name in name_to_parents[var_name]], name_to_cpt[var_name]) for var_name in name_to_parents.keys())
         return total_score
-
-    def temp_BIC_score(self, var_name, name_to_parents, cpt):
-        # Calculate the BIC score for a given variable, its parents, and its CPT
-        variable = self.find_variable(var_name)
-        N = len(variable.get_data('input'))
-        k = cpt.size
-        log_likelihood = self.temp_calculate_log_likelihood(var_name, name_to_parents, cpt)
-        score = log_likelihood - (k / 2) * math.log(N)
-        return score
-
-    def temp_calculate_log_likelihood(self, var_name, name_to_parents, cpt):
-        # Implement the logic similar to calculate_log_likelihood but use the provided CPT and parent names
-        variable = self.find_variable(var_name)
-        data = variable.get_data('input')
-        if name_to_parents[var_name]:
-            indices = np.stack([self.variables[parent_name].get_data('output') for parent_name in name_to_parents[var_name]] + [data], 0)
-            probs = cpt[tuple(indices)]
-        else:
-            probs = cpt[data]
-        log_likelihood = np.sum(np.log(probs))
-        return log_likelihood
 
     def BIC_all(self):
         score = 0
         
         for variable in self.variables.values():
-            score += self.BIC_sep(variable)
+            if isinstance(variable, ObjectNode):
+                # calculate the score for each input variable in the object node
+                for input_var_name in variable.inputs:
+                    input_variable = variable.variables[input_var_name]
+                    score += input_variable.BIC_sep()
+            else:
+                score += variable.BIC_sep()
         
-        return score
-    
-    def BIC_sep(self, variable):
-        # when the variable is an object node
-        if isinstance(variable, ObjectNode):
-            # calculate the score for each input variable in the object node
-            score = 0
-            for input_var_name in variable.input:
-                input_variable = variable.variables[input_var_name]
-                score += self.BIC_sep(input_variable)
-
-        else:
-            # when the variable is not an object node
-            N = len(variable.get_data('input'))
-
-            k = variable.cpt.size
-            log_likelihood = self.calculate_log_likelihood(variable)
-            score = log_likelihood - (k / 2) * math.log(N)
-            
-            # print("CPT size: ", k)
-            # print("Log Likelihood: ", log_likelihood)
-
         return score
     
     def ll_all(self):
         score = 0
         
         for variable in self.variables.values():
-            score += self.ll_sep(variable)
+            if isinstance(variable, ObjectNode):
+                # calculate the score for each input variable in the object node
+                for input_var_name in variable.input:
+                    input_variable = variable.variables[input_var_name]
+                    score += input_variable.ll_sep()
+            else:
+                score += variable.ll_sep()
         
         return score
-    
-    def ll_sep(self, variable):
-        # when the variable is an object node
-        if isinstance(variable, ObjectNode):
-            # calculate the score for each input variable in the object node
-            score = 0
-            for input_var_name in variable.input:
-                input_variable = variable.variables[input_var_name]
-                score += self.ll_sep(input_variable)
-
-        else:
-            # when the variable is not an object node
-            score = self.calculate_log_likelihood(variable)
-            
-            # print("Log Likelihood: ", score)
-
-        return score
-
-    def calculate_log_likelihood(self, variable):
-        data = variable.get_data('input')
-        if variable.parents:
-            # When there are parent variables
-            indices = np.stack([parent.get_data('output') for parent in variable.parents] + [data], 0)
-            # get the probability of each data point
-            probs = variable.cpt[tuple(indices)]
-        else:
-            # When there are no parent variables (independent variable)
-            probs = variable.cpt[data]
-
-        log_likelihood = np.sum(np.log(probs + 1e-6))
-        return log_likelihood
     
     def calculate_LL0(self, variable):
         # For a variable with k states, the log-likelihood under the null model is N * log(1/k)
@@ -254,18 +200,16 @@ class ObjectNode(Variable):
 
     def update_structure(self, ordering):
         for var_name in ordering:
-            # skip if the variable is input type in this object node
-            if var_name in self.input:
-                continue
-
             variable = self.variables[var_name]
             # if the variable is an object node, iterate over its input variables
+            # print("set: ", var_name, " parents")
             if isinstance(variable, ObjectNode):
                 preceding_vars = ordering[:ordering.index(var_name)]
-                for input_var_name in variable.input:
+                for input_var_name in variable.inputs:
                     input_variable = variable.variables[input_var_name]
                     # assuming that the input variable is not an object node
                     self.set_optimal_parents(input_variable, preceding_vars)
+
             else:
                 preceding_vars = ordering[:ordering.index(var_name)]
                 self.set_optimal_parents(variable, preceding_vars)
@@ -278,12 +222,22 @@ class ObjectNode(Variable):
         
         LL0 = self.calculate_LL0(variable)
 
-        for r in range(min(len(preceding_vars) + 1, 3)):
+        preceding_vars_variable = []
+        for preceding_var in preceding_vars:
+            if isinstance(preceding_var, ObjectNode):
+                for output_var_name in preceding_var.outputs:
+                    output_variable = preceding_var.variables[output_var_name]
+                    preceding_vars_variable.append(output_variable)
+            else:
+                preceding_vars_variable.append(preceding_var)
+
+        for r in range(min(len(preceding_vars_variable) + 1, 3)):
             improved_in_r = False
-            for subset in combinations(preceding_vars, r):
-                parent_names = list(subset)
-                cpt = variable.estimate_cpt_with_parents(parent_names, self.variables)
-                score = self.temp_BIC_score(variable.name, {variable.name: parent_names}, cpt)
+            for subset in combinations(preceding_vars_variable, r):
+                parent_names = [parent.name for parent in variable.parents] + list(subset)
+                parents = [self.find_variable(parent_name) for parent_name in parent_names]
+                cpt = variable.estimate_cpt_with_parents(parents, self.variables)
+                score = variable.temp_BIC_score(parents, cpt)
                 if score > best_score:
                     # print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
                     improved_in_r = True
@@ -302,37 +256,45 @@ class ObjectNode(Variable):
         return best_parents, best_cpt
     
     def set_optimal_parents(self, variable, preceding_vars):
-        # print("Finding optimal parents for variable: ", variable.name)
+        # print("Finding optimal parents for variable: ", variable)
         best_parents = []
+        best_cpt = None
         best_score = float('-inf')
         
         LL0 = self.calculate_LL0(variable)
-        
-        for r in range(min(len(preceding_vars) + 1, 3)):
+
+        preceding_vars_variable = []
+        for preceding_var in preceding_vars:
+            var = self.find_variable(preceding_var)
+            if isinstance(var, ObjectNode):
+                for output_var_name in var.outputs:
+                    output_variable = var.variables[output_var_name]
+                    preceding_vars_variable.append(output_variable.name)
+            else:
+                preceding_vars_variable.append(preceding_var)
+
+        for r in range(min(len(preceding_vars_variable) + 1, 3)):
             improved_in_r = False
-            for subset in combinations(preceding_vars, r):
-                candidate_parents = [self.variables[var] for var in subset]
-                variable.set_parents(candidate_parents)
-                variable.estimate_cpt()
-
-                score = self.BIC_sep(variable)
-
-                # print("Candidate Parents: ", [self.variables[var].name for var in subset])
-                # print("Score: ", score)
-
+            for subset in combinations(preceding_vars_variable, r):
+                parent_names = [parent.name for parent in variable.parents] + list(subset)
+                parents = [self.find_variable(parent_name) for parent_name in parent_names]
+                cpt = variable.estimate_cpt_with_parents(parents, self.variables)
+                score = variable.temp_BIC_score(parents, cpt)
                 if score > best_score:
+                    # print("Update Best Parents: ", [candidate_parent for candidate_parent in parent_names])
                     improved_in_r = True
-                    # print("Update Best Parents: ", [candidate_parent.name for candidate_parent in candidate_parents])
                     best_score = score
-                    best_parents = candidate_parents
+                    best_parents = parent_names
+                    best_cpt = cpt
             if not improved_in_r:
                 break
         
-        variable.set_parents(best_parents)
-        variable.estimate_cpt()
+        # print("variable: ", variable.name, " best parents: ", [parent for parent in best_parents])
+        variable.set_parents([self.find_variable(parent_name) for parent_name in best_parents])
+        variable.set_cpt(best_cpt)
 
         # check likelihood ratio
-        LL = self.calculate_log_likelihood(variable)
+        LL = variable.calculate_log_likelihood()
         likelihood_ratio = (LL0 - LL) / LL0
         # print("Likelihood Ratio: ", likelihood_ratio)
 
@@ -481,28 +443,28 @@ class ObjectNode(Variable):
     # calculate the BIC gain
     def calculate_bic_gain(self, operation):
         if operation[2] == "add":
-            score = -1 * self.BIC_sep(self.variables[operation[0]])
+            score = -1 * self.variables[operation[0]].BIC_sep()
             self.variables[operation[0]].parents.append(self.variables[operation[1]])
             self.variables[operation[0]].estimate_cpt()
-            score += self.BIC_sep(self.variables[operation[0]])
+            score += self.variables[operation[0]].BIC_sep()
             self.variables[operation[0]].parents.remove(self.variables[operation[1]])
             self.variables[operation[0]].estimate_cpt()
             return score
         elif operation[2] == "remove":
-            score = -1 * self.BIC_sep(self.variables[operation[0]])
+            score = -1 * self.variables[operation[0]].BIC_sep()
             self.variables[operation[0]].parents.remove(self.variables[operation[1]])
             self.variables[operation[0]].estimate_cpt()
-            score += self.BIC_sep(self.variables[operation[0]])
+            score += self.variables[operation[0]].BIC_sep()
             self.variables[operation[0]].parents.append(self.variables[operation[1]])
             self.variables[operation[0]].estimate_cpt()
             return score
         elif operation[2] == "reverse":
-            score = -1 * (self.BIC_sep(self.variables[operation[0]]) + self.BIC_sep(self.variables[operation[1]]))
+            score = -1 * (self.variables[operation[0]].BIC_sep() + self.variables[operation[1]].BIC_sep())
             self.variables[operation[0]].parents.remove(self.variables[operation[1]])
             self.variables[operation[1]].parents.append(self.variables[operation[0]])
             self.variables[operation[0]].estimate_cpt()
             self.variables[operation[1]].estimate_cpt()
-            score += self.BIC_sep(self.variables[operation[0]]) + self.BIC_sep(self.variables[operation[1]])
+            score += self.variables[operation[0]].BIC_sep() + self.variables[operation[1]].BIC_sep()
             self.variables[operation[0]].parents.append(self.variables[operation[1]])
             self.variables[operation[1]].parents.remove(self.variables[operation[0]])
             self.variables[operation[0]].estimate_cpt()
@@ -683,6 +645,7 @@ class ObjectNode(Variable):
     
     def save_model_parameters(self, filename):
         model_params = self._extract_model_params()
+        os.makedirs(os.path.join("data", "modelData", os.path.dirname(filename)), exist_ok=True)
         with open(os.path.join("data", "modelData", filename+".json"), 'w') as file:
             json.dump(model_params, file, indent=4)
 
@@ -703,9 +666,9 @@ class ObjectNode(Variable):
                 # Otherwise, extract the variable's parameters as usual
                 model_params["variables"][var_name] = {
                     "num_states": variable.states,
-                    "parents": [parent.output for parent in variable.parents],
+                    "parents": [parent.name for parent in variable.parents],
                     "cpt": variable.cpt.tolist() if variable.cpt is not None else None,
-                    "BIC": self.BIC_sep(variable)
+                    "BIC": variable.BIC_sep(),
                 }
                 model_params["objects"][self.name]["variables"].append(var_name)
         return model_params

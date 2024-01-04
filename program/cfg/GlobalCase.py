@@ -43,14 +43,14 @@ Configs = {
         "objects": [
             {"name": "obj1",
               "variables": ["Age", "Companion", "Purpose", "PurposeType"],
-              "fix": {"Age": 0, "Purpose": 1},
+              "fix": {0: "Age", 1: "Purpose"},
               "objs": ["Mode"]
             },
             {"name": "Mode",
               "variables": ["TripNumber", "WalkTime", "TrainTime", "Mode"],
               "input": ["TripNumber"],
-              "output": ["Mode"],
-              "fix": {0: "TripNumber", "4": "Mode"}
+              "output": ["Mode", "TripNumber"],
+              "fix": {0: "TripNumber", 4: "Mode"}
             }
         ],
         "numrows": 10000,
@@ -96,7 +96,7 @@ Configs = {
         "objects": [
             {"name": "obj1",
               "variables": ["Age", "Companion", "Purpose", "PurposeType"],
-              "fix": {"Age": 0, "Purpose": 1},
+              "fix": {0: "Age", 1: "Purpose"},
               "objs": ["Mode"]
             },
             {"name": "Mode",
