@@ -1,6 +1,8 @@
 {
     "modelName": "real1",
     "averageMethod": "deepC",
-    "expTimes": 10,
-    "referConfig": "model1/pred_0.json"
+    "expTimes": 1,
+    "referConfig": "pred_0.json",
+    "scheduler": "True",
+    "nan_delete_columns": ["TripNumber"]
 }

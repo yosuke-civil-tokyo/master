@@ -190,12 +190,16 @@ class ConditionalVAE(nn.Module):
             samples = torch.stack(samples)
         return samples
     
-    def sample_with_random_bic(self, num_samples, bic_score_range=[1.8, 2.2]):
+    def sample_with_random_bic(self, num_samples, bic_score_range=[1.5, 2.2], limit=True):
+        if not limit:
+            limit_iter = 1e10
+        else:
+            limit_iter = 50000
         with torch.no_grad():
             samples = []
             last_sample = torch.zeros(self.z_dim, self.z_dim)
             i = 0
-            while (len(samples) < num_samples) & (i < 50000):
+            while (len(samples) < num_samples) & (i < limit_iter):
                 i += 1
                 z = torch.randn(1, self.z_dim)
                 bic_score = torch.unsqueeze(torch.tensor([random.uniform(*bic_score_range) for i in range(self.z_dim)]), 0)
@@ -215,9 +219,13 @@ class ConditionalVAE(nn.Module):
                     samples.append(sample)
                     last_sample = sample
                     print("sampled: ", len(samples))
-            if i == 50000:
+                if i % 10000 == 0:
+                    print("iteration: ", i)
+            if i == limit_iter:
                 print("reached max iteration")
                 return None
+            else:
+                print("finished sampling")
             samples = torch.stack(samples)
         return samples
 
@@ -297,13 +305,13 @@ if __name__ == "__main__":
     torch.save(model.state_dict(), os.path.join(folder, "model_state.pth"))
 """
 if __name__ == "__main__":
-    folder = "data/modelData/model2/model2-objorder_optimization/"
-    with open("data/modelData/model2/truth/truth.json", "r") as f:
+    folder = "data/modelData/real1/"
+    with open("data/modelData/real1/pred_0.json", "r") as f:
         truthConfig = json.load(f)
     adjacency_matrices, bic_scores = createTensorsFromConfigs(folder, truthConfig=truthConfig, addBIC=True)
     TensorData = TensorDataset(adjacency_matrices, bic_scores)
-    data_loader = DataLoader(TensorData, batch_size=4, shuffle=True)
-    model = ConditionalVAE(z_dim=33)
+    data_loader = DataLoader(TensorData, batch_size=8, shuffle=True)
+    model = ConditionalVAE(z_dim=26)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     model.train(data_loader=data_loader, optimizer=optimizer, epochs=2000)
     torch.save(model.state_dict(), os.path.join(folder, "model_state_condition.pth"))
