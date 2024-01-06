@@ -1,10 +1,18 @@
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+import argparse
 import copy
+import json
 import os
 import random
 import time
 import numpy as np
 
 from model.DeepGen import DeepGenerativeModel, ConditionalVAE
+from dl.DataLoader import make_dataloader
+from model.BuildModel import BuildModelFromConfig
 import torch
 
 # average function for structure
@@ -53,15 +61,16 @@ def bestChoice(configs, truthConfig=None, model_num=1):
 
     return aveConfigs, time.time()-startTime
 
-def deepAverage(folder_path, num_samples=100, truthConfig=None, model_num=1, condition=False):
+def deepAverage(folder_path, num_samples=100, truthConfig=None, model_num=1, condition=False, limit=True):
     startTime = time.time()
+    num_variables = len(truthConfig.get("variables"))
     if condition:
         model_path = os.path.join(folder_path, "model_state_condition.pth")
-        model = ConditionalVAE(z_dim=33)
+        model = ConditionalVAE(z_dim=num_variables)
         model.load_state_dict(torch.load(model_path))
         print("loading model from: ", model_path)
         preferrable_bic = torch.unsqueeze(torch.tensor([2.0]*33), 0)
-        sampled_matrices = model.sample_with_random_bic(model_num)
+        sampled_matrices = model.sample_with_random_bic(model_num, limit=limit)
         if sampled_matrices is None:
             model_path = os.path.join(folder_path, "model_state.pth")
             model = DeepGenerativeModel(z_dim=33)
@@ -70,7 +79,7 @@ def deepAverage(folder_path, num_samples=100, truthConfig=None, model_num=1, con
             sampled_matrices = model.sample(model_num)
     else:
         model_path = os.path.join(folder_path, "model_state.pth")
-        model = DeepGenerativeModel(z_dim=33)
+        model = DeepGenerativeModel(z_dim=num_variables)
         model.load_state_dict(torch.load(model_path))
         print("loading model from: ", model_path)
         sampled_matrices = model.sample(model_num)
@@ -95,3 +104,75 @@ def setArcs(config, countTable, variableNames):
                 i += 1
     newConfig["variables"] = variables
     return newConfig
+
+
+# for averaging & saving config
+def average(config):
+    modelName = config.get("modelName")
+    averageMethod = config.get("averageMethod")
+    referConfig = config.get("referConfig")
+    scheduler = config.get("scheduler")
+    nan_delete_columns = config.get("nan_delete_columns", [])
+
+    if scheduler == "True":
+        dl = make_dataloader(None, None, None, None, modelName)
+        for col in nan_delete_columns:
+            dl.pt_data = dl.pt_data[dl.pt_data[col] != 0]
+        dl.update_with_schedule_rows(modelName, [], [], None)
+    else:
+        dl = make_dataloader(None, None, None, None, modelName)
+    dl.train_test_split()
+    dl.pt_data = dl.train_data
+    dataLen = len(dl.pt_data)
+    
+    folderPath = os.path.join("data/modelData", modelName)
+    models = os.listdir(folderPath)
+    with open(os.path.join(folderPath, referConfig), "r") as f:
+        truthConfig = json.load(f)
+    normConfig = truthConfig.copy()
+
+    if (averageMethod == "thres") | (averageMethod == "best"):
+        modelConfigs = []
+        for modelNum in models:
+            modelPath = os.path.join(folderPath, modelNum)
+            try:
+                with open(modelPath, "r") as f:
+                    modelConfig = json.load(f)
+                    
+            except:
+                print("error in loading: ", modelPath)
+                continue
+            modelConfigs.append(modelConfig)
+
+    if averageMethod == "thres":
+        aveConfigs, calTime = thresAverage(modelConfigs, truthConfig=normConfig, model_num=1)
+    elif averageMethod == "best":
+        aveConfigs, calTime = bestChoice(modelConfigs, truthConfig=normConfig, model_num=1)
+    elif averageMethod == "deep":
+        aveConfigs, calTime = deepAverage(folder_path=folderPath, num_samples=dataLen, truthConfig=normConfig, model_num=1)
+    elif averageMethod == "deepC":
+        aveConfigs, calTime = deepAverage(folder_path=folderPath, num_samples=dataLen, truthConfig=normConfig, model_num=1, condition=True, limit=False)
+    aveConfig = aveConfigs[0]
+
+    model = BuildModelFromConfig(aveConfig)
+    model.set_data_from_dataloader(dl, column_list=list(aveConfig.get("variables").keys()))
+    for var_name in aveConfig.get("variables").keys():
+        model.find_variable(var_name).estimate_cpt()
+    model.save_model_parameters(modelName + "/" + averageMethod)
+
+
+if __name__ == "__main__":
+    # read config with argparse
+    parser = argparse.ArgumentParser(description="Run a structure optimization experiment")
+
+    # add the arguments
+    parser.add_argument("--ConfigFile",
+                        metavar="config_file",
+                        type=str,
+                        help="the path to config file")
+    args = parser.parse_args()
+    with open(args.ConfigFile, "r") as f:
+        config = json.load(f)
+
+    # get score
+    average(config)

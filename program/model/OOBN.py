@@ -79,6 +79,7 @@ class ObjectNode(Variable):
     
     def add_variable(self, variable):
         self.variables[variable.name] = variable
+        self.ordering.append(variable.name)
         variable.object_node = self
 
     def initialize_structure(self):
@@ -657,6 +658,7 @@ class ObjectNode(Variable):
         model_params["objects"][self.name]["variables"] = []
         model_params["objects"][self.name]["in_obj"] = []
         for var_name in self.ordering:
+            print("Extracting variable: ", var_name)
             variable = self.variables[var_name]
             if isinstance(variable, ObjectNode):
                 # If the variable is an ObjectNode, recursively extract its parameters
@@ -672,6 +674,14 @@ class ObjectNode(Variable):
                 }
                 model_params["objects"][self.name]["variables"].append(var_name)
         return model_params
+    
+    def make_table(self, columns):
+        table = []
+        for col in columns:
+            print(col)
+            table.append(self.find_variable(col).get_data('input'))
+        table = np.array(table).T
+        return pd.DataFrame(table, columns=columns)
     
 
     def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000, rand=None):

@@ -42,8 +42,8 @@ Configs = {
         "nan_delete_columns": ["TripNumber"],
         "objects": [
             {"name": "obj1",
-              "variables": ["TripNumber", "Age", "License"],
-              "fix": {0: "Age", 3: "Trip1", 4: "Trip2", 5: "Trip3", 6: "Trip4", 7: "Trip5"},
+              "variables": ["TripNumber", "Age", "License", "Sex", "CarAvailable", "Employment"],
+              "fix": {0: "Age", 6: "Trip1", 7: "Trip2", 8: "Trip3", 9: "Trip4", 10: "Trip5"},
               "objs": ["Trip1", "Trip2", "Trip3", "Trip4", "Trip5"]
             },
             {"name": "Trip1",
