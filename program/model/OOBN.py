@@ -658,7 +658,6 @@ class ObjectNode(Variable):
         model_params["objects"][self.name]["variables"] = []
         model_params["objects"][self.name]["in_obj"] = []
         for var_name in self.ordering:
-            print("Extracting variable: ", var_name)
             variable = self.variables[var_name]
             if isinstance(variable, ObjectNode):
                 # If the variable is an ObjectNode, recursively extract its parameters
