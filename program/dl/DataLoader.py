@@ -66,6 +66,7 @@ class DataLoader:
     def load_pt_data(self, pt_csv_file_path, data_types=None):
         # Read PT data from CSV with shift-jis encoding
         self.pt_data = pd.read_csv(pt_csv_file_path)
+        self.pt_data["出発時刻：時"] = self.pt_data["出発時刻：時"].fillna(0).astype(int).values + (self.pt_data["出発時刻：午前・午後"].fillna(0).astype(int).values - 1) * 12
         
     def load_los_data(self, los_csv_file_path, data_types=None):
         # Read LOS data from CSV
