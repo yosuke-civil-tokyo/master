@@ -675,6 +675,14 @@ class ObjectNode(Variable):
                 model_params["objects"][self.name]["variables"].append(var_name)
         return model_params
     
+    def make_table(self, columns):
+        table = []
+        for col in columns:
+            print(col)
+            table.append(self.find_variable(col).get_data('input'))
+        table = np.array(table).T
+        return pd.DataFrame(table, columns=columns)
+    
 
     def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000, rand=None):
         # generate data with original condition

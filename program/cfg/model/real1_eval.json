@@ -1,8 +1,7 @@
 {
     "modelName": "real1",
-    "averageMethod": "deepC",
-    "expTimes": 1,
-    "referConfig": "pred_0.json",
+    "compareModelJsons": ["deepC.json"],
     "scheduler": "True",
-    "nan_delete_columns": ["TripNumber"]
+    "nan_delete_columns": ["TripNumber"],
+    "columns_not_included": ["PersonID"]
 }

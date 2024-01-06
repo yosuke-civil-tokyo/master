@@ -118,7 +118,7 @@ def average(config):
         dl = make_dataloader(None, None, None, None, modelName)
         for col in nan_delete_columns:
             dl.pt_data = dl.pt_data[dl.pt_data[col] != 0]
-        dl.update_with_schedule_rows(modelName, [], [], 5)
+        dl.update_with_schedule_rows(modelName, [], [], None)
     else:
         dl = make_dataloader(None, None, None, None, modelName)
     dl.train_test_split()
