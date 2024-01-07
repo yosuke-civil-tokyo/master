@@ -167,12 +167,16 @@ class Variable:
         # sample from probability array
         return np.random.choice(self.states, p=prob)
     
-    def generate(self, num_samples):
+    def generate(self, num_samples, set_data=True):
         probs = self.probability_array(num_samples=num_samples)
         # replace rows of nan, 0
         zero_rows = np.all(probs==0, axis=1)
         probs[zero_rows] = np.full((self.states,), 1/self.states)
-        self.data = np.array([np.random.choice(self.states, p=probs[i]) for i in range(num_samples)])
+
+        if set_data:
+            self.data = np.array([np.random.choice(self.states, p=probs[i]) for i in range(num_samples)])
+        else:
+            return np.array([np.random.choice(self.states, p=probs[i]) for i in range(num_samples)])
 
     # evaluation functions
     # log likelihood

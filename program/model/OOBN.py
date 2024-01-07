@@ -677,20 +677,23 @@ class ObjectNode(Variable):
     def make_table(self, columns=None, return_list=False):
         if columns is None:
             columns = self.variables.keys()
+        columns_use = []
         table = []
         for col in columns:
             var = self.find_variable(col)
             if isinstance(var, ObjectNode):
-                table_from_obj = var.make_table(var.variables.keys(), return_list=True)
+                table_from_obj, col_use = var.make_table(var.variables.keys(), return_list=True)
                 table = table + table_from_obj
+                columns_use = columns_use + col_use
             else:
                 table.append(self.find_variable(col).get_data('input'))
+                columns_use.append(col)
 
         if return_list:
-            return table
+            return table, columns_use
         
         table = np.array(table).T
-        return pd.DataFrame(table, columns=columns)
+        return pd.DataFrame(table, columns=columns_use)
     
 
     def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000, rand=None):

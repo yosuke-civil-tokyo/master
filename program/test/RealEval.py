@@ -10,6 +10,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # make a table to store criteria of each model
 from model.BuildModel import BuildModelFromConfig
+from model.DBN import generate_data_with_constraint
 from dl.DataLoader import make_dataloader
 
 
@@ -19,6 +20,7 @@ def getDataTables(config):
     scheduler = config.get("scheduler")
     nan_delete_columns = config.get("nan_delete_columns", [])
     columns_not_included = config.get("columns_not_included", [])
+    bool_resample = config.get("bool_resample", False)
 
     # data
     if scheduler == "True":
@@ -41,8 +43,11 @@ def getDataTables(config):
         with open(modelpath, "r") as f:
             modelConfig = json.load(f)
         model = BuildModelFromConfig(modelConfig)
-        model.generate(dataLen)
-        table = model.make_table(test_data.columns)
+        if bool_resample:
+            _, table, _ = generate_data_with_constraint(dataLen, model, start_node=None)
+        else:
+            model.generate(dataLen)
+            table = model.make_table(test_data.columns)
         modelDict[modelJson] = table
 
         if i == 0:
