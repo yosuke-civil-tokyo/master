@@ -657,6 +657,7 @@ class ObjectNode(Variable):
         model_params["objects"][self.name] = {}
         model_params["objects"][self.name]["variables"] = []
         model_params["objects"][self.name]["in_obj"] = []
+        model_params["objects"][self.name]["dynamic"] = False
         for var_name in self.ordering:
             variable = self.variables[var_name]
             if isinstance(variable, ObjectNode):

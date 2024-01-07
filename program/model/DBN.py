@@ -66,6 +66,33 @@ class DynamicNode(ObjectNode):
             # change row of the person who resampled activity
             self.variables[var_name].data[return_rows] = resampled_data[return_rows]
 
+
+    def _extract_model_params(self, model_params=None):
+        if model_params is None:
+            model_params = {"variables": {}, "objects": {}, "score": self.score, "timeTaken": 0}
+        model_params["timeTaken"] += self.calc_time
+        model_params["objects"][self.name] = {}
+        model_params["objects"][self.name]["variables"] = []
+        model_params["objects"][self.name]["in_obj"] = []
+        # different part
+        model_params["objects"][self.name]["dynamic"] = True
+        for var_name in self.ordering:
+            variable = self.variables[var_name]
+            if isinstance(variable, ObjectNode):
+                # If the variable is an ObjectNode, recursively extract its parameters
+                model_params = variable._extract_model_params(model_params=model_params)
+                model_params["objects"][self.name]["in_obj"].append(var_name)
+            else:
+                # Otherwise, extract the variable's parameters as usual
+                model_params["variables"][var_name] = {
+                    "num_states": variable.states,
+                    "parents": [parent.name for parent in variable.parents],
+                    "cpt": variable.cpt.tolist() if variable.cpt is not None else None,
+                    "BIC": variable.BIC_sep(),
+                }
+                model_params["objects"][self.name]["variables"].append(var_name)
+        return model_params
+
 # a function for specifying which row of DynamicNode is used for learning
 def row_of_ith_activity(numOfTrips, i):
     return numOfTrips >= i
