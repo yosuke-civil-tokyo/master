@@ -106,8 +106,20 @@ Configs = {
         "convert_dict_continuous": {
             "距離": 5,
             "年齢": 3,
-            "滞在時間（分）": 5,
-            "出発時刻：時": 6,
+        },
+        "convert_dict_with_interval": {
+            "滞在時間（分）": {
+                "start": 0,
+                "end": 720,
+                "interval": 120,
+                "num_states": 6,
+            },
+            "出発時刻：時": {
+                "start": 6,
+                "end": 26,
+                "interval": 4,
+                "num_states": 5,
+            },
         },
         "change_name_dict": {
             "自動車運転免許保有の状況": "License",
