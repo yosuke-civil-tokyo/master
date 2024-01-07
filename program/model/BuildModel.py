@@ -33,6 +33,7 @@ def BuildModelFromConfig(config):
     for obj_name, obj_info in config["objects"].items():
         if obj_info.get("dynamic", False):
             new_obj = DynamicNode(obj_name, {})
+            new_obj.manage_variable_name = "TripNumber"
         else:
             new_obj = ObjectNode(obj_name, {})
         for var_name in obj_info["variables"]:

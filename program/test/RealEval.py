@@ -33,6 +33,7 @@ def getDataTables(config):
     dl.train_test_split()
     test_data = dl.test_data.drop(columns_not_included, axis=1)
     dataLen = len(test_data)
+    print("dataLen: ", dataLen)
 
     # generate person data from loaded model
     modelDict = {}

@@ -32,13 +32,14 @@ class DynamicNode(ObjectNode):
         # i-th of activity is obtained from the name of the object
         self.use_row = row_of_ith_activity(numOfTrips, self.trip_num)
         for variable in self.variables:
-            variable.use_row = self.use_row
-        
-        self.manage_variable_name = var
+            self.find_variable(variable).use_row = self.use_row
+        if var is not None:
+            self.manage_variable_name = var
 
     # generate data, based on cpt
     # generate for person who conducted the i-th activity
     def generate(self, num_samples, start_node=None):
+        self.set_use_row(self.object_node.find_variable(self.manage_variable_name).get_data('output'))
         manage_variable = self.object_node.find_variable(self.manage_variable_name)
         manage_data = manage_variable.get_data('output')
         conducted_persons = (manage_data >= self.trip_num + 1)
@@ -58,6 +59,8 @@ class DynamicNode(ObjectNode):
         manage_variable = self.object_node.find_variable(self.manage_variable_name)
         manage_data = manage_variable.get_data('output')
         conducted_persons = (manage_data >= self.trip_num + 1)
+        print(f"conducted rows for Trip{self.trip_num}: ", conducted_persons.sum())
+        print(f"resampled rows for Trip{self.trip_num}: ", (return_rows & conducted_persons).sum())
 
         for var_name in self.ordering:
             resampled_data = self.variables[var_name].generate(num_samples, set_data=False)
@@ -123,6 +126,7 @@ def resample_with_constraint(target_obj=ObjectNode("exp"), whole_data=pd.DataFra
         # resampling process
         # get the activity that doesn't satisfy the time constraints
         j = 0
+        resampled_rows_in_this_iteration = np.zeros(len(whole_data), dtype=bool)
         for i in range(1, max_trip_num):
             # calculate the finished time of i-th activity
             # note that start_time's unit is 4-hours, and activity_time's unit is 2-hours
@@ -132,18 +136,18 @@ def resample_with_constraint(target_obj=ObjectNode("exp"), whole_data=pd.DataFra
             # get the start time of (i+1)-th activity
             next_start_time = (whole_data[f"Trip{i+1}_StartTime"].values - 1) * 4
 
-            rows_of_constraint = (end_time+4 > next_start_time)
+            rows_of_constraint = (end_time > next_start_time + 6)
             resampled_rows_num = rows_of_constraint.sum()
-            resampled_rows = resampled_rows | rows_of_constraint
+            resampled_rows_in_this_iteration |= rows_of_constraint
 
             if resampled_rows_num == 0:
                 j += 1
                 continue
-            
+            # print(f"resample {resampled_rows_num} rows of Trip{i+1}")
             # resample the activity
-            target_obj.find_variable(f"Trip{i}").generate_for_part(len(whole_data), rows_of_constraint)
+            target_obj.find_variable(f"Trip{i+1}").generate_for_part(len(whole_data), rows_of_constraint)
             whole_data = target_obj.make_table()
         iteration += 1
-        print(f"{iteration}th iteration, {resampled_rows.sum()} rows are resampled")
+        resampled_rows |= resampled_rows_in_this_iteration
 
     return whole_data, resampled_rows
