@@ -674,11 +674,21 @@ class ObjectNode(Variable):
                 model_params["objects"][self.name]["variables"].append(var_name)
         return model_params
     
-    def make_table(self, columns):
+    def make_table(self, columns=None, return_list=False):
+        if columns is None:
+            columns = self.variables.keys()
         table = []
         for col in columns:
-            print(col)
-            table.append(self.find_variable(col).get_data('input'))
+            var = self.find_variable(col)
+            if isinstance(var, ObjectNode):
+                table_from_obj = var.make_table(var.variables.keys(), return_list=True)
+                table = table + table_from_obj
+            else:
+                table.append(self.find_variable(col).get_data('input'))
+
+        if return_list:
+            return table
+        
         table = np.array(table).T
         return pd.DataFrame(table, columns=columns)
     
