@@ -122,7 +122,7 @@ def resample_with_constraint(target_obj=ObjectNode("exp"), whole_data=pd.DataFra
     iteration = 0
     resampled_rows = np.zeros(len(whole_data), dtype=bool)
     j = 0
-    while (iteration < 100) & (j < max_trip_num-1):
+    while (iteration < 10) & (j < max_trip_num-1):
         # resampling process
         # get the activity that doesn't satisfy the time constraints
         j = 0
