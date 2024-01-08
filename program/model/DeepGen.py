@@ -190,7 +190,7 @@ class ConditionalVAE(nn.Module):
             samples = torch.stack(samples)
         return samples
     
-    def sample_with_random_bic(self, num_samples, bic_score_range=[1.5, 2.2], limit=True):
+    def sample_with_random_bic(self, num_samples, bic_score_range=[0.4, 2.0], limit=True):
         if not limit:
             limit_iter = 1e10
         else:
@@ -305,13 +305,13 @@ if __name__ == "__main__":
     torch.save(model.state_dict(), os.path.join(folder, "model_state.pth"))
 """
 if __name__ == "__main__":
-    folder = "data/modelData/real1/"
-    with open("data/modelData/real1/pred_0.json", "r") as f:
+    folder = "data/modelData/real2/"
+    with open("data/modelData/real2/pred_0.json", "r") as f:
         truthConfig = json.load(f)
     adjacency_matrices, bic_scores = createTensorsFromConfigs(folder, truthConfig=truthConfig, addBIC=True)
     TensorData = TensorDataset(adjacency_matrices, bic_scores)
-    data_loader = DataLoader(TensorData, batch_size=8, shuffle=True)
-    model = ConditionalVAE(z_dim=26)
+    data_loader = DataLoader(TensorData, batch_size=4, shuffle=True)
+    model = ConditionalVAE(z_dim=36)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     model.train(data_loader=data_loader, optimizer=optimizer, epochs=2000)
     torch.save(model.state_dict(), os.path.join(folder, "model_state_condition.pth"))

@@ -7,6 +7,7 @@ import numpy as np
 import argparse
 from model.BN import Variable
 from model.OOBN import ObjectNode
+from model.DBN import DynamicNode
 
 def BuildModelFromConfig(config):
     variables = {}
@@ -30,7 +31,11 @@ def BuildModelFromConfig(config):
     # Create and add ObjectNodes to the model
     objects = {}
     for obj_name, obj_info in config["objects"].items():
-        new_obj = ObjectNode(obj_name, {})
+        if obj_info.get("dynamic", False):
+            new_obj = DynamicNode(obj_name, {})
+            new_obj.manage_variable_name = "TripNumber"
+        else:
+            new_obj = ObjectNode(obj_name, {})
         for var_name in obj_info["variables"]:
             new_obj.add_variable(variables[var_name])
         new_obj.ordering = obj_info["variables"]
@@ -40,6 +45,10 @@ def BuildModelFromConfig(config):
         if obj_info.get("in_obj"):
             for child_name in obj_info["in_obj"]:
                 objects[obj_name].add_variable(objects[child_name])
+
+    # sort variables in each object
+    for obj_name, obj_info in config["objects"].items():
+        objects[obj_name].sort_variables()
 
     return objects["obj1"]
 

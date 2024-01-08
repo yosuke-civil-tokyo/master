@@ -66,6 +66,7 @@ class DataLoader:
     def load_pt_data(self, pt_csv_file_path, data_types=None):
         # Read PT data from CSV with shift-jis encoding
         self.pt_data = pd.read_csv(pt_csv_file_path)
+        self.pt_data["出発時刻：時"] = self.pt_data["出発時刻：時"].fillna(0).astype(int).values + (self.pt_data["出発時刻：午前・午後"].fillna(0).astype(int).values - 1) * 12
         
     def load_los_data(self, los_csv_file_path, data_types=None):
         # Read LOS data from CSV
@@ -137,8 +138,17 @@ class DataLoader:
     # by continuous value
     def discretize_dataframe_fromcon(self, df, col_dict):
         for col_name, bin_size in col_dict.items():
-            print(col_name)
             df[col_name] = pd.qcut(df[col_name].astype(float).rank(method='first'), bin_size, labels=False).values + 1
+        return df
+    
+    def discretize_with_interval(self, df, col_dict):
+        for col_name, col_info in col_dict.items():
+            start = col_info["start"]
+            end = col_info["end"]
+            interval = col_info["interval"]
+            num_states = col_info["num_states"]
+            data_clipped = np.clip(df[col_name].astype(float).values, start, end)
+            df[col_name] = pd.cut(data_clipped, num_states, labels=False) + 1
         return df
     
     # split data for train and test
@@ -240,7 +250,8 @@ def make_dataloader(
         change_name_dict=None,
         case_name=None, 
         return_table=False,
-        include_person_id=False):
+        include_person_id=False,
+        convert_dict_with_interval=None):
     dl = DataLoader()
 
     # Check if intermediate data exists
@@ -270,12 +281,15 @@ def make_dataloader(
 
     print("descretization")
     used_col = list(convert_dict.keys())+list(convert_dict_continuous.keys())
+    if convert_dict_with_interval is not None:
+        used_col += list(convert_dict_with_interval.keys())
     if include_person_id:
         table["PersonID"] = dl.concat_personID(table)
         used_col.append("PersonID")
     table = dl.fill_data(table, used_col)
     table = dl.discretize_dataframe(table, convert_dict)
     table = dl.discretize_dataframe_fromcon(table, convert_dict_continuous)
+    table = dl.discretize_with_interval(table, convert_dict_with_interval)
     table = table.rename(columns=change_name_dict).astype(int)
 
     # Set the table as dl.pt_data, with reset index

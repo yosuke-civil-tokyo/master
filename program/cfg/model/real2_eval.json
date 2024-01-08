@@ -1,0 +1,8 @@
+{
+    "modelName": "real2",
+    "compareModelJsons": ["deepC.json"],
+    "scheduler": "True",
+    "nan_delete_columns": ["TripNumber"],
+    "columns_not_included": ["PersonID"],
+    "bool_resample": true
+}

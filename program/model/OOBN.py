@@ -2,6 +2,7 @@ import os
 import math
 import json
 from itertools import chain, combinations
+from collections import deque
 import numpy as np
 import pandas as pd
 import random
@@ -81,6 +82,31 @@ class ObjectNode(Variable):
         self.variables[variable.name] = variable
         self.ordering.append(variable.name)
         variable.object_node = self
+
+    def sort_variables(self):
+        # make adjacency matrix
+        adj_matrix = self.adj_matrix()
+        print("adjacency matrix: ", adj_matrix)
+        # sort variables by topological sort
+        order = topological_sort(adj_matrix)
+        print("topological order: ", order)
+        # fix self.ordering
+        self.ordering = [self.ordering[i] for i in order]
+        print("sorted variables: ", self.ordering)
+
+    def adj_matrix(self):
+        adj_matrix = np.zeros((len(self.variables), len(self.variables)))
+        for i in range(len(self.variables)):
+            for j in range(len(self.variables)):
+                # check if it's objectnode
+                i_var = self.variables[self.ordering[i]]
+                j_var = self.variables[self.ordering[j]]
+                adj_matrix[i, j] = check_parent(i_var, j_var)
+
+        # set diagonal to 0
+        np.fill_diagonal(adj_matrix, 0)
+        return adj_matrix
+
 
     def initialize_structure(self):
         for variable in self.variables.values():
@@ -657,8 +683,8 @@ class ObjectNode(Variable):
         model_params["objects"][self.name] = {}
         model_params["objects"][self.name]["variables"] = []
         model_params["objects"][self.name]["in_obj"] = []
+        model_params["objects"][self.name]["dynamic"] = False
         for var_name in self.ordering:
-            print("Extracting variable: ", var_name)
             variable = self.variables[var_name]
             if isinstance(variable, ObjectNode):
                 # If the variable is an ObjectNode, recursively extract its parameters
@@ -675,13 +701,26 @@ class ObjectNode(Variable):
                 model_params["objects"][self.name]["variables"].append(var_name)
         return model_params
     
-    def make_table(self, columns):
+    def make_table(self, columns=None, return_list=False):
+        if columns is None:
+            columns = self.variables.keys()
+        columns_use = []
         table = []
         for col in columns:
-            print(col)
-            table.append(self.find_variable(col).get_data('input'))
+            var = self.find_variable(col)
+            if isinstance(var, ObjectNode):
+                table_from_obj, col_use = var.make_table(var.variables.keys(), return_list=True)
+                table = table + table_from_obj
+                columns_use = columns_use + col_use
+            else:
+                table.append(self.find_variable(col).get_data('input'))
+                columns_use.append(col)
+
+        if return_list:
+            return table, columns_use
+        
         table = np.array(table).T
-        return pd.DataFrame(table, columns=columns)
+        return pd.DataFrame(table, columns=columns_use)
     
 
     def calculate_elasticity(self, target_variable, control_variable, change_rate, num_samples=10000, rand=None):
@@ -707,6 +746,59 @@ class ObjectNode(Variable):
         target_dist = np.mean(target_probs, axis=0)
 
         return target_dist
+    
+def topological_sort(adj_matrix):
+    n = len(adj_matrix)
+    in_degree = [0] * n
+
+    # Compute in-degree of each node
+    for i in range(n):
+        for j in range(n):
+            if adj_matrix[i][j] == 1:
+                in_degree[j] += 1
+
+    # Queue for vertices with no incoming edges
+    queue = deque()
+    for i in range(n):
+        if in_degree[i] == 0:
+            queue.append(i)
+
+    # Perform topological sort
+    top_order = []
+    while queue:
+        u = queue.popleft()
+        top_order.append(u)
+
+        # Decrease in-degree of adjacent vertices and add them if in-degree becomes 0
+        for v in range(n):
+            if adj_matrix[u][v] == 1:
+                in_degree[v] -= 1
+                if in_degree[v] == 0:
+                    queue.append(v)
+
+    if len(top_order) != n:
+        return None  # Graph has a cycle, topological sort not possible
+
+    # Reverse the topological order to meet the requirement
+    return top_order[::-1]
+
+def check_parent(i_var, j_var):
+    if isinstance(i_var, ObjectNode):
+        for input_var in i_var.variables.values():
+            if check_parent(input_var, j_var):
+                return 1
+        return 0
+    else:
+        if isinstance(j_var, ObjectNode):
+            for output_var in j_var.variables.values():
+                if check_parent(i_var, output_var):
+                    return 1
+            return 0
+        else:
+            if j_var.name in [parent.name for parent in i_var.parents]:
+                return 1
+            else:
+                return 0
 
 
 if __name__=="__main__":

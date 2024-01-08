@@ -17,6 +17,7 @@ def exTest(config, flag=0):
     data_files = config.get("data_files")
     convert_dict = config.get("convert_dict")
     convert_dict_continuous = config.get("convert_dict_continuous")
+    convert_dict_with_interval = config.get("convert_dict_with_interval")
     change_name_dict = config.get("change_name_dict")
     object_configs = config["objects"]
     evaluate_target = config.get("evaluate_target")
@@ -29,7 +30,7 @@ def exTest(config, flag=0):
 
     # Load data using the new make_dataloader function
     print("Loading data...")
-    dl = make_dataloader(data_files, convert_dict, convert_dict_continuous, change_name_dict, case_name, include_person_id=True)
+    dl = make_dataloader(data_files, convert_dict, convert_dict_continuous, change_name_dict, case_name, include_person_id=True, convert_dict_with_interval=convert_dict_with_interval)
     for col in nan_delete_columns:
         dl.pt_data = dl.pt_data[dl.pt_data[col] != 0]
     print(dl.pt_data.head(10))
