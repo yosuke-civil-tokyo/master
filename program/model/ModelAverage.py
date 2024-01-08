@@ -9,6 +9,7 @@ import os
 import random
 import time
 import numpy as np
+from collections import deque
 
 from model.DeepGen import DeepGenerativeModel, ConditionalVAE
 from dl.DataLoader import make_dataloader
@@ -102,8 +103,49 @@ def setArcs(config, countTable, variableNames):
             if countTable[variableNums[child], variableNums[parent]]:
                 variables[child]["parents"].append(parent)
                 i += 1
-    newConfig["variables"] = variables
+
+    # sort variables by topological sort
+    order = topological_sort(countTable)
+    orderedVariables = {variableNames[i]: variables[variableNames[i]] for i in order}
+    print("variables: ", variableNames)
+    print("orderedVariables: ", orderedVariables.keys())
+    newConfig["variables"] = orderedVariables
     return newConfig
+
+
+def topological_sort(adj_matrix):
+    n = len(adj_matrix)
+    in_degree = [0] * n
+
+    # Compute in-degree of each node
+    for i in range(n):
+        for j in range(n):
+            if adj_matrix[i][j] == 1:
+                in_degree[j] += 1
+
+    # Queue for vertices with no incoming edges
+    queue = deque()
+    for i in range(n):
+        if in_degree[i] == 0:
+            queue.append(i)
+
+    # Perform topological sort
+    top_order = []
+    while queue:
+        u = queue.popleft()
+        top_order.append(u)
+
+        # Decrease in-degree of adjacent vertices and add them if in-degree becomes 0
+        for v in range(n):
+            if adj_matrix[u][v] == 1:
+                in_degree[v] -= 1
+                if in_degree[v] == 0:
+                    queue.append(v)
+
+    if len(top_order) != n:
+        return None  # Graph has a cycle, topological sort not possible
+    
+    return top_order[::-1]
 
 
 # for averaging & saving config

@@ -46,6 +46,10 @@ def BuildModelFromConfig(config):
             for child_name in obj_info["in_obj"]:
                 objects[obj_name].add_variable(objects[child_name])
 
+    # sort variables in each object
+    for obj_name, obj_info in config["objects"].items():
+        objects[obj_name].sort_variables()
+
     return objects["obj1"]
 
 
