@@ -1,8 +1,7 @@
 \begin{thebibliography}{1}
 
-\bibitem{Baydin2018}
-At^^c4^^b1l^^c4^^b1m G^^c3^^bcne^^c2^^b8, G^^c3^^bcne^^c2^^b8s Baydin, Barak~A Pearlmutter, and Jeffrey~Mark Siskind.
-\newblock Automatic differentiation in machine learning: a survey.
-\newblock {\em Journal of Machine Learning Research}, Vol.~18, pp. 1--43, 2018.
+\bibitem{Xiang1997}
+Yuanfei Xiang, Y~Xiang, and S~K~M Wong.
+\newblock Critical remarks on single link search in learning belief networks, 1997.
 
 \end{thebibliography}
