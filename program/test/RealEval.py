@@ -63,11 +63,15 @@ def calcCriterion(config, modelDict, variableStates):
     compareModelJsons = config.get("compareModelJsons")
     scheduler = config.get("scheduler")
     nan_delete_columns = config.get("nan_delete_columns", [])
+    bool_resample = config.get("bool_resample", False)
 
     aggDict = {}
     for model, table in modelDict.items():
         aggregatedTable = aggregateTable(table, variableStates)
-        modelCSVName = os.path.splitext(model)[0] + ".csv"
+        if bool_resample:
+            modelCSVName = os.path.splitext(model)[0] + "_resample.csv"
+        else:
+            modelCSVName = os.path.splitext(model)[0] + ".csv"
         savePath = os.path.join("data/modelData", modelName, modelCSVName)
         aggDict[model] = aggregatedTable
         aggregatedTable.to_csv(savePath)

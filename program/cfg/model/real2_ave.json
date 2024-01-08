@@ -1,0 +1,8 @@
+{
+    "modelName": "real2",
+    "averageMethod": "deepC",
+    "expTimes": 1,
+    "referConfig": "pred_0.json",
+    "scheduler": "True",
+    "nan_delete_columns": ["TripNumber"]
+}
